@@ -1,0 +1,8 @@
+{
+  "name": "Remix MRI learn v5",
+  "description": "Aplikasi edukasi fisika dan teknik MRI medis, simulator kontras TR/TE, presesi spin Larmor, dan kurikulum radiologi klinis.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
