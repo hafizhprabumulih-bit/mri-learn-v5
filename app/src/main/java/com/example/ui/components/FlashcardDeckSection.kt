@@ -514,6 +514,7 @@ fun StudyModeToggleBar(
     onSelectMode: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = com.example.util.rememberMriHaptics()
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -527,7 +528,10 @@ fun StudyModeToggleBar(
                 .weight(1f)
                 .clip(RoundedCornerShape(10.dp))
                 .background(if (!isFlashcardMode) CyanPrimary else DeepObsidian)
-                .clickable { onSelectMode(false) }
+                .clickable {
+                    haptics.lightToggle()
+                    onSelectMode(false)
+                }
                 .padding(vertical = 10.dp)
                 .testTag("mode_list_button"),
             contentAlignment = Alignment.Center
@@ -545,7 +549,10 @@ fun StudyModeToggleBar(
                 .weight(1f)
                 .clip(RoundedCornerShape(10.dp))
                 .background(if (isFlashcardMode) CyanPrimary else DeepObsidian)
-                .clickable { onSelectMode(true) }
+                .clickable {
+                    haptics.lightToggle()
+                    onSelectMode(true)
+                }
                 .padding(vertical = 10.dp)
                 .testTag("mode_flashcard_button"),
             contentAlignment = Alignment.Center

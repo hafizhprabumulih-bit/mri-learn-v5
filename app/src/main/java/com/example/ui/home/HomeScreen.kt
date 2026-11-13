@@ -1,5 +1,6 @@
 package com.example.ui.home
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -39,6 +40,7 @@ import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.GridOn
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.PrecisionManufacturing
 import androidx.compose.material.icons.filled.Quiz
@@ -73,6 +75,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -147,6 +150,7 @@ fun HomeScreen(
     val dailyCounts by pathHolder.observeDailyShiftCounts(todayKey).collectAsState(initial = Triple(0, 0, 0))
     val triedLabNodes by pathHolder.triedLabNodesFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
+    val haptics = com.example.util.rememberMriHaptics()
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
 
     var homeRootTopInRoot by remember { mutableStateOf(0f) }
@@ -255,12 +259,14 @@ fun HomeScreen(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
-                // GAMBAR API (STREAK HARI BELAJAR 🔥)
                 Box(
                     modifier = Modifier
                         .defaultMinSize(minHeight = 48.dp)
                         .clip(RoundedCornerShape(20.dp))
-                        .clickable { viewModel.setStreakDialogVisible(true) },
+                        .clickable {
+                            haptics.lightToggle()
+                            viewModel.setStreakDialogVisible(true)
+                        },
                     contentAlignment = Alignment.Center
                 ) {
                     Surface(
@@ -273,7 +279,12 @@ fun HomeScreen(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            Text(text = "🔥", fontSize = 13.sp)
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = "Streak belajar",
+                                tint = Color(0xFFF59E0B),
+                                modifier = Modifier.size(14.dp)
+                            )
                             Text(
                                 text = "${state.studyStreakDays} Hari",
                                 fontSize = 11.sp,
@@ -286,7 +297,10 @@ fun HomeScreen(
 
                 // GAMBAR INFO / PANDUAN PETA
                 IconButton(
-                    onClick = { showLegendFromInfo = true },
+                    onClick = {
+                        haptics.lightToggle()
+                        showLegendFromInfo = true
+                    },
                     modifier = Modifier.size(48.dp)
                 ) {
                     Box(
@@ -463,7 +477,12 @@ fun HomeScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(6.dp)
                             ) {
-                                Text(text = "⚡", fontSize = 14.sp)
+                                Icon(
+                                    imageVector = Icons.Default.Bolt,
+                                    contentDescription = null,
+                                    tint = AmberWarning,
+                                    modifier = Modifier.size(16.dp)
+                                )
                                 Text(
                                     text = "Shift Nano Hari Ini",
                                     fontSize = 13.5.sp,
@@ -660,6 +679,45 @@ fun HomeScreen(
                     else -> NanoIllustrationType.CLINICAL_CONSOLE
                 }
 
+                if (firstModInChapter != null) {
+                    val connectorX = PathGeometry.xFractionFor(firstModInChapter.globalIndex)
+                    val connectorDone = firstModInChapter.status == NodeStatus.DONE
+                    item(key = "home_ill_${chapter.chapterKey}") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 2.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(modifier = Modifier.matchParentSize()) {
+                                val strokePx = 6.dp.toPx()
+                                val lineColor = if (connectorDone) CyanBright else Color(0xFF426794)
+                                val x = size.width * connectorX.coerceIn(0f, 1f)
+                                drawLine(
+                                    color = lineColor.copy(alpha = 0.28f),
+                                    start = Offset(x, 0f),
+                                    end = Offset(x, size.height),
+                                    strokeWidth = strokePx + 5.dp.toPx()
+                                )
+                                drawLine(
+                                    color = lineColor,
+                                    start = Offset(x, 0f),
+                                    end = Offset(x, size.height),
+                                    strokeWidth = strokePx
+                                )
+                            }
+
+                            InteractiveNanoIllustration(
+                                type = chapterIllType,
+                                characterCustomization = state.characterCustomization,
+                                modifier = Modifier
+                                    .align(Alignment.Center)
+                                    .padding(vertical = 4.dp)
+                            )
+                        }
+                    }
+                }
+
                 chapter.modules.forEachIndexed { localIdx, modState ->
                     val module = modState.module
                     val xFraction = PathGeometry.xFractionFor(modState.globalIndex)
@@ -697,18 +755,6 @@ fun HomeScreen(
                                         .padding(top = 6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    // Mini item proporsional di sisi seberang kotak (tidak mentok ke ujung atau bawah)
-                                    if (localIdx == 0) {
-                                        val putOnRight = xFraction <= 0.5f
-                                        InteractiveNanoIllustration(
-                                            type = chapterIllType,
-                                            alignRight = putOnRight,
-                                            modifier = Modifier
-                                                .align(if (putOnRight) Alignment.CenterEnd else Alignment.CenterStart)
-                                                .padding(horizontal = 24.dp, vertical = 4.dp)
-                                        )
-                                    }
-
                                     // Kotak toggle 3D modul (M01-M09) bersih tanpa teks penjelasan di bawahnya
                                     PathAlignedSlot(xFraction = xFraction) {
                                         PathNodeButton(

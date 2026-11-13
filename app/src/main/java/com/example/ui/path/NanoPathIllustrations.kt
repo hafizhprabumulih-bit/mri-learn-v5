@@ -2,6 +2,7 @@ package com.example.ui.path
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -14,6 +15,8 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -25,6 +28,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -32,10 +36,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,18 +56,25 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.CharacterCustomizationState
 import com.example.ui.character.AvatarView
 import com.example.ui.character.Expression
+import com.example.util.rememberMriHaptics
+import kotlinx.coroutines.delay
 import com.example.ui.theme.AmberAccent
 import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CardSlate
@@ -211,19 +224,21 @@ enum class NanoIllustrationType(
 }
 
 /**
- * Ilustrasi vektor gaya Nano yang menyatu langsung dengan latar peta (tanpa bingkai kartu kaku).
- * Pesan edukatif hanya muncul sebagai balon mengambang (Popup) ketika ikon ditekan,
- * sehingga sama sekali tidak mengubah posisi atau susunan simpul peta belajar.
+ * Ilustrasi vektor gaya Nano yang menyatu di tengah jalur peta belajar.
+ * Ketika ditekan, ilustrasi masuk ke panggung spotlight interaktif bersama Nano,
+ * dan ketika ditekan kembali (atau keluar), ilustrasi meluncur keluar kembali ke tempatnya.
  */
 @Composable
 fun InteractiveNanoIllustration(
     type: NanoIllustrationType,
     modifier: Modifier = Modifier,
-    alignRight: Boolean = false
+    alignRight: Boolean = false,
+    characterCustomization: CharacterCustomizationState = CharacterCustomizationState()
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptics = rememberMriHaptics()
     var tapCount by remember(type) { mutableIntStateOf(0) }
-    var showBubble by remember(type) { mutableStateOf(false) }
+    var isStageDialogMounted by remember(type) { mutableStateOf(false) }
+    var isOnStage by remember(type) { mutableStateOf(false) }
 
     val infiniteTransition = rememberInfiniteTransition(label = "nano_ill_${type.name}")
     val floatOffset by infiniteTransition.animateFloat(
@@ -239,112 +254,302 @@ fun InteractiveNanoIllustration(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2600, easing = FastOutSlowInEasing),
+            animation = tween(durationMillis = 2600, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
         ),
         label = "pulse"
     )
+    val artifactCyclePhase by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 4f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 5600, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "artifact_cycle"
+    )
 
-    val bounceScale by animateFloatAsState(
-        targetValue = if (showBubble) 1.12f else 1.0f,
+    val inlineScale by animateFloatAsState(
+        targetValue = if (isOnStage) 0.72f else 1.0f,
         animationSpec = spring(
             dampingRatio = Spring.DampingRatioMediumBouncy,
             stiffness = Spring.StiffnessMedium
         ),
-        label = "bounce"
+        label = "inline_stage_scale"
     )
+    val inlineAlpha by animateFloatAsState(
+        targetValue = if (isOnStage) 0.28f else 1.0f,
+        animationSpec = tween(220),
+        label = "inline_stage_alpha"
+    )
+
+    LaunchedEffect(isOnStage) {
+        if (!isOnStage && isStageDialogMounted) {
+            delay(280L)
+            isStageDialogMounted = false
+        }
+    }
 
     val activeResponse = type.responses[tapCount % type.responses.size]
 
     Box(
         modifier = modifier,
-        contentAlignment = if (alignRight) Alignment.CenterEnd else Alignment.CenterStart
+        contentAlignment = Alignment.Center
     ) {
         Column(
             modifier = Modifier
-                .width(92.dp)
+                .width(116.dp)
+                .defaultMinSize(minHeight = 48.dp)
+                .graphicsLayer {
+                    scaleX = inlineScale
+                    scaleY = inlineScale
+                    alpha = inlineAlpha
+                }
                 .semantics {
-                    contentDescription = "${type.label}, ketuk untuk respons edukasi Nano"
+                    contentDescription = "${type.label}, ketuk untuk masuk ke panggung interaktif Nano"
                 }
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     role = Role.Button
                 ) {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                    if (!showBubble) {
-                        showBubble = true
+                    haptics.lightToggle()
+                    if (!isStageDialogMounted) {
+                        isStageDialogMounted = true
+                        isOnStage = true
                     } else {
-                        tapCount++
-                        if (tapCount % type.responses.size == 0) {
-                            showBubble = false
-                        }
+                        isOnStage = false
                     }
                 },
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
-                modifier = Modifier.size(74.dp),
+                modifier = Modifier.size(80.dp),
                 contentAlignment = Alignment.Center
             ) {
-                // Pijakan 3D elips berlapis di bawah mini item agar tampak proporsional & menyatu dengan peta
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawOval(
-                        color = type.badgeColor.copy(alpha = if (showBubble) 0.30f else 0.16f),
-                        topLeft = Offset(size.width * 0.10f, size.height * 0.70f),
-                        size = Size(size.width * 0.80f, size.height * 0.24f)
+                        color = type.badgeColor.copy(alpha = if (isOnStage) 0.34f else 0.18f),
+                        topLeft = Offset(size.width * 0.08f, size.height * 0.70f),
+                        size = Size(size.width * 0.84f, size.height * 0.24f)
                     )
                     drawOval(
-                        color = type.badgeColor.copy(alpha = if (showBubble) 0.55f else 0.28f),
-                        topLeft = Offset(size.width * 0.14f, size.height * 0.72f),
-                        size = Size(size.width * 0.72f, size.height * 0.20f),
+                        color = type.badgeColor.copy(alpha = if (isOnStage) 0.65f else 0.32f),
+                        topLeft = Offset(size.width * 0.12f, size.height * 0.72f),
+                        size = Size(size.width * 0.76f, size.height * 0.20f),
                         style = Stroke(width = 1.6.dp.toPx())
                     )
                     drawOval(
-                        color = Color.Black.copy(alpha = 0.42f),
-                        topLeft = Offset(size.width * 0.20f, size.height * 0.76f),
-                        size = Size(size.width * 0.60f, size.height * 0.14f)
+                        color = Color.Black.copy(alpha = 0.44f),
+                        topLeft = Offset(size.width * 0.18f, size.height * 0.76f),
+                        size = Size(size.width * 0.64f, size.height * 0.14f)
                     )
                 }
                 NanoVectorCanvas(
                     type = type,
                     floatOffset = floatOffset,
                     pulsePhase = pulsePhase,
-                    scaleFactor = bounceScale,
-                    modifier = Modifier.size(66.dp)
+                    cyclePhase = artifactCyclePhase,
+                    scaleFactor = 1.0f,
+                    modifier = Modifier.size(70.dp)
                 )
             }
-            Text(
-                text = type.label,
-                color = if (showBubble) type.badgeColor else TextPrimary.copy(alpha = 0.86f),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1
-            )
-        }
-
-        if (showBubble) {
-            val density = androidx.compose.ui.platform.LocalDensity.current
-            val yOffsetPx = with(density) { (-118).dp.roundToPx() }
-            androidx.compose.ui.window.Popup(
-                alignment = if (alignRight) Alignment.TopEnd else Alignment.TopStart,
-                offset = androidx.compose.ui.unit.IntOffset(x = 0, y = yOffsetPx),
-                onDismissRequest = { showBubble = false }
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = Color(0xCC0A1C30),
+                border = BorderStroke(1.dp, type.badgeColor.copy(alpha = 0.55f))
             ) {
-                IllustrationSpeechBubble(
-                    title = type.label,
-                    text = activeResponse,
-                    stepIndex = (tapCount % type.responses.size) + 1,
-                    totalSteps = type.responses.size,
-                    accent = type.badgeColor,
-                    tailOnRight = alignRight,
-                    tailPointingDown = true,
-                    onAdvance = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
-                        tapCount++
-                    },
-                    onClose = { showBubble = false }
+                Text(
+                    text = type.label,
+                    color = type.badgeColor,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
                 )
+            }
+        }
+    }
+
+    if (isStageDialogMounted) {
+        Dialog(
+            onDismissRequest = {
+                haptics.lightToggle()
+                isOnStage = false
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            var stageVisible by remember { mutableStateOf(false) }
+            LaunchedEffect(Unit) { stageVisible = true }
+            LaunchedEffect(isOnStage) {
+                if (!isOnStage) stageVisible = false
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xB8040B14))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) {
+                        haptics.lightToggle()
+                        isOnStage = false
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                AnimatedVisibility(
+                    visible = stageVisible,
+                    enter = slideInVertically(
+                        initialOffsetY = { it / 2 },
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow)
+                    ) + scaleIn(initialScale = 0.55f) + fadeIn(tween(220)),
+                    exit = slideOutVertically(
+                        targetOffsetY = { it / 2 },
+                        animationSpec = tween(250, easing = FastOutSlowInEasing)
+                    ) + scaleOut(targetScale = 0.55f) + fadeOut(tween(220))
+                ) {
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null
+                            ) {
+                                // Ketuk ilustrasi/kartu panggung -> keluar panggung kembali ke peta
+                                haptics.lightToggle()
+                                isOnStage = false
+                            },
+                        shape = RoundedCornerShape(26.dp),
+                        color = DarkNavySlate,
+                        border = BorderStroke(2.dp, type.badgeColor),
+                        shadowElevation = 18.dp
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(
+                                    Brush.verticalGradient(
+                                        colors = listOf(
+                                            type.badgeColor.copy(alpha = 0.22f),
+                                            DarkNavySlate,
+                                            Color(0xFF071322)
+                                        )
+                                    )
+                                )
+                                .padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = type.badgeColor.copy(alpha = 0.16f),
+                                border = BorderStroke(1.dp, type.badgeColor.copy(alpha = 0.65f))
+                            ) {
+                                Text(
+                                    text = "PANGGUNG INTERAKTIF · ${type.label.uppercase()}",
+                                    color = type.badgeColor,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    letterSpacing = 0.9.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+                                )
+                            }
+
+                            // Panggung utama tempat ilustrasi masuk dan beranimasi besar
+                            Box(
+                                modifier = Modifier
+                                    .size(164.dp)
+                                    .clip(RoundedCornerShape(24.dp))
+                                    .background(Color(0xFF06111E))
+                                    .border(1.4.dp, type.badgeColor.copy(alpha = 0.45f), RoundedCornerShape(24.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Canvas(modifier = Modifier.fillMaxSize()) {
+                                    drawOval(
+                                        brush = Brush.radialGradient(
+                                            colors = listOf(type.badgeColor.copy(alpha = 0.34f), Color.Transparent)
+                                        ),
+                                        topLeft = Offset(size.width * 0.14f, size.height * 0.72f),
+                                        size = Size(size.width * 0.72f, size.height * 0.20f)
+                                    )
+                                }
+                                NanoVectorCanvas(
+                                    type = type,
+                                    floatOffset = floatOffset * 1.4f,
+                                    pulsePhase = pulsePhase,
+                                    cyclePhase = artifactCyclePhase,
+                                    scaleFactor = 1.06f,
+                                    modifier = Modifier.size(134.dp)
+                                )
+                            }
+
+                            // Nano pemandu di samping balon fakta (ketuk untuk ganti fakta tanpa menutup panggung)
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable(role = Role.Button) {
+                                        haptics.lightToggle()
+                                        tapCount++
+                                    },
+                                shape = RoundedCornerShape(16.dp),
+                                color = Color(0xFF091829),
+                                border = BorderStroke(1.2.dp, CyanBright.copy(alpha = 0.45f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    AvatarView(
+                                        role = characterCustomization.avatarId,
+                                        equipped = characterCustomization,
+                                        expression = when (tapCount % 3) {
+                                            1 -> Expression.BANGGA
+                                            2 -> Expression.BERPIKIR
+                                            else -> Expression.SENANG
+                                        },
+                                        modifier = Modifier.size(48.dp)
+                                    )
+                                    Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.SpaceBetween
+                                        ) {
+                                            Text(
+                                                text = "Fakta Nano",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = CyanBright
+                                            )
+                                            Text(
+                                                text = "${(tapCount % type.responses.size) + 1}/${type.responses.size} • Ketuk Nano",
+                                                fontSize = 10.sp,
+                                                color = TextSecondary
+                                            )
+                                        }
+                                        Text(
+                                            text = activeResponse,
+                                            fontSize = 12.sp,
+                                            color = TextPrimary,
+                                            lineHeight = 16.5.sp
+                                        )
+                                    }
+                                }
+                            }
+
+                            Text(
+                                text = "Ketuk ilustrasi atau panggung untuk keluar kembali ke peta",
+                                fontSize = 10.5.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = type.badgeColor.copy(alpha = 0.9f),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -682,7 +887,8 @@ fun NanoVectorCanvas(
     floatOffset: Float,
     pulsePhase: Float,
     scaleFactor: Float,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    cyclePhase: Float = pulsePhase * 4f
 ) {
     Canvas(modifier = modifier) {
         val w = size.width
@@ -993,19 +1199,65 @@ fun NanoVectorCanvas(
             }
 
             NanoIllustrationType.SAFETY_ZONES -> {
-                drawCircle(RoseDanger.copy(alpha = 0.26f), r * 0.95f, Offset(cx, cy))
-                drawCircle(RoseDanger, r * 0.95f, Offset(cx, cy), style = Stroke(3f))
-                drawCircle(AmberWarning, r * 0.65f, Offset(cx, cy), style = Stroke(3f))
-                drawCircle(CyanBright, r * 0.36f, Offset(cx, cy), style = Stroke(3f))
-                drawCircle(RoseDanger, r * (0.14f + 0.05f * pulseGlow), Offset(cx, cy))
+                // Animasi zona keselamatan mengembang berurutan dari lingkaran kecil ke lingkaran besar
+                val waveRadius = r * (0.16f + 0.82f * pulsePhase)
+                val ring1Alpha = ((pulsePhase - 0.00f) / 0.25f).coerceIn(0.25f, 1f)
+                val ring2Alpha = ((pulsePhase - 0.22f) / 0.25f).coerceIn(0.22f, 1f)
+                val ring3Alpha = ((pulsePhase - 0.48f) / 0.28f).coerceIn(0.20f, 1f)
+                val ring2Radius = r * (0.18f + 0.18f * ring1Alpha)
+                val ring3Radius = r * (0.36f + 0.29f * ring2Alpha)
+                val ring4Radius = r * (0.65f + 0.30f * ring3Alpha)
+
+                drawCircle(RoseDanger.copy(alpha = 0.18f * ring3Alpha), ring4Radius, Offset(cx, cy))
+                drawCircle(RoseDanger.copy(alpha = ring3Alpha), ring4Radius, Offset(cx, cy), style = Stroke(3f))
+                drawCircle(AmberWarning.copy(alpha = ring2Alpha), ring3Radius, Offset(cx, cy), style = Stroke(3f))
+                drawCircle(CyanBright.copy(alpha = ring1Alpha), ring2Radius, Offset(cx, cy), style = Stroke(3f))
+                drawCircle(
+                    color = RoseDanger.copy(alpha = (1f - pulsePhase).coerceIn(0.15f, 0.85f)),
+                    radius = waveRadius,
+                    center = Offset(cx, cy),
+                    style = Stroke(width = 2.4f)
+                )
+                drawCircle(RoseDanger, r * (0.15f + 0.04f * pulseGlow), Offset(cx, cy))
             }
 
             NanoIllustrationType.ARTEFAK_ALIAS -> {
+                // Berganti-ganti 4 gambar artefak MRI (Aliasing -> Motion Ghosting -> Zipper RF -> Susceptibility Void)
+                val mode = (cyclePhase.toInt().coerceIn(0, 3))
                 drawRoundRect(Color(0xFF142E48), Offset(cx - r * 0.90f, cy - r * 0.74f), Size(r * 1.80f, r * 1.48f), CornerRadius(12f, 12f))
-                drawRoundRect(CharActionYellow.copy(alpha = 0.65f), Offset(cx - r * 0.90f, cy - r * 0.74f), Size(r * 1.80f, r * 1.48f), CornerRadius(12f, 12f), style = Stroke(2.4f))
-                drawOval(CharActionYellow.copy(alpha = 0.92f), Offset(cx - r * 0.36f, cy - r * 0.46f), Size(r * 0.72f, r * 0.92f), style = Stroke(3.2f))
-                drawArc(RoseDanger, -90f, 180f, false, Offset(cx - r * 1.05f, cy - r * 0.35f), Size(r * 0.50f, r * 0.70f), style = Stroke(3.4f))
-                drawArc(RoseDanger, 90f, 180f, false, Offset(cx + r * 0.55f, cy - r * 0.35f), Size(r * 0.50f, r * 0.70f), style = Stroke(3.4f))
+                drawRoundRect(CharActionYellow.copy(alpha = 0.72f), Offset(cx - r * 0.90f, cy - r * 0.74f), Size(r * 1.80f, r * 1.48f), CornerRadius(12f, 12f), style = Stroke(2.4f))
+
+                when (mode) {
+                    0 -> {
+                        // Gambar 1: Aliasing wrap-around di tepi kiri-kanan
+                        drawOval(CharActionYellow.copy(alpha = 0.92f), Offset(cx - r * 0.36f, cy - r * 0.46f), Size(r * 0.72f, r * 0.92f), style = Stroke(3.2f))
+                        drawArc(RoseDanger, -90f, 180f, false, Offset(cx - r * 1.02f, cy - r * 0.35f), Size(r * 0.48f, r * 0.70f), style = Stroke(3.4f))
+                        drawArc(RoseDanger, 90f, 180f, false, Offset(cx + r * 0.54f, cy - r * 0.35f), Size(r * 0.48f, r * 0.70f), style = Stroke(3.4f))
+                    }
+                    1 -> {
+                        // Gambar 2: Motion Ghosting (bayangan berulang bergeser)
+                        drawOval(CyanBright.copy(alpha = 0.36f), Offset(cx - r * 0.56f, cy - r * 0.54f), Size(r * 0.68f, r * 0.84f), style = Stroke(2.4f))
+                        drawOval(CyanBright.copy(alpha = 0.52f), Offset(cx - r * 0.12f, cy - r * 0.38f), Size(r * 0.68f, r * 0.84f), style = Stroke(2.4f))
+                        drawOval(CharActionYellow, Offset(cx - r * 0.34f, cy - r * 0.46f), Size(r * 0.68f, r * 0.84f), style = Stroke(3.2f))
+                    }
+                    2 -> {
+                        // Gambar 3: Zipper RF Leak (garis putus-putus di tengah citra)
+                        drawOval(CharAccentMint.copy(alpha = 0.85f), Offset(cx - r * 0.42f, cy - r * 0.48f), Size(r * 0.84f, r * 0.96f), style = Stroke(3f))
+                        drawLine(
+                            color = RoseDanger,
+                            start = Offset(cx - r * 0.82f, cy),
+                            end = Offset(cx + r * 0.82f, cy),
+                            strokeWidth = 3.4f,
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), pulsePhase * 18f)
+                        )
+                    }
+                    else -> {
+                        // Gambar 4: Susceptibility Metal Void (distorsi tepi & rongga gelap)
+                        drawOval(CyanBright.copy(alpha = 0.85f), Offset(cx - r * 0.44f, cy - r * 0.50f), Size(r * 0.88f, r * 1.00f), style = Stroke(3f))
+                        drawCircle(Color(0xFF040A12), radius = r * 0.28f, center = Offset(cx + r * 0.22f, cy + r * 0.12f))
+                        drawCircle(AmberAccent, radius = r * 0.30f, center = Offset(cx + r * 0.22f, cy + r * 0.12f), style = Stroke(2.8f))
+                    }
+                }
             }
 
             NanoIllustrationType.QA_PHANTOM -> {
@@ -1020,9 +1272,24 @@ fun NanoVectorCanvas(
             NanoIllustrationType.CLINICAL_CONSOLE -> {
                 drawRoundRect(Color(0xFF102A44), Offset(cx - r * 0.96f, cy - r * 0.76f), Size(r * 1.92f, r * 1.28f), CornerRadius(12f, 12f))
                 drawRoundRect(CyanBright, Offset(cx - r * 0.96f, cy - r * 0.76f), Size(r * 1.92f, r * 1.28f), CornerRadius(12f, 12f), style = Stroke(3f))
-                drawLine(EmeraldSuccess, Offset(cx - r * 0.70f, cy - r * 0.35f), Offset(cx + r * 0.24f, cy - r * 0.35f), 4f, StrokeCap.Round)
-                drawLine(AmberAccent, Offset(cx - r * 0.70f, cy - r * 0.05f), Offset(cx + r * 0.58f, cy - r * 0.05f), 4f, StrokeCap.Round)
-                drawLine(CyanGlow, Offset(cx - r * 0.70f, cy + r * 0.22f), Offset(cx + r * 0.10f, cy + r * 0.22f), 4f, StrokeCap.Round)
+                // Tiga bar parameter operator bergerak dinamis sesuai fase osilasi
+                val bar1W = r * (0.72f + 0.56f * (0.5f + 0.5f * sin(pulsePhase * 2f * PI).toFloat()))
+                val bar2W = r * (0.64f + 0.68f * (0.5f + 0.5f * sin((pulsePhase + 0.33f) * 2f * PI).toFloat()))
+                val bar3W = r * (0.58f + 0.62f * (0.5f + 0.5f * sin((pulsePhase + 0.66f) * 2f * PI).toFloat()))
+                val leftX = cx - r * 0.70f
+
+                drawLine(Color(0xFF1C3F61), Offset(leftX, cy - r * 0.35f), Offset(cx + r * 0.70f, cy - r * 0.35f), 4f, StrokeCap.Round)
+                drawLine(EmeraldSuccess, Offset(leftX, cy - r * 0.35f), Offset(leftX + bar1W, cy - r * 0.35f), 4.2f, StrokeCap.Round)
+                drawCircle(Color.White, radius = 3.2f, center = Offset(leftX + bar1W, cy - r * 0.35f))
+
+                drawLine(Color(0xFF1C3F61), Offset(leftX, cy - r * 0.05f), Offset(cx + r * 0.70f, cy - r * 0.05f), 4f, StrokeCap.Round)
+                drawLine(AmberAccent, Offset(leftX, cy - r * 0.05f), Offset(leftX + bar2W, cy - r * 0.05f), 4.2f, StrokeCap.Round)
+                drawCircle(Color.White, radius = 3.2f, center = Offset(leftX + bar2W, cy - r * 0.05f))
+
+                drawLine(Color(0xFF1C3F61), Offset(leftX, cy + r * 0.22f), Offset(cx + r * 0.70f, cy + r * 0.22f), 4f, StrokeCap.Round)
+                drawLine(CyanGlow, Offset(leftX, cy + r * 0.22f), Offset(leftX + bar3W, cy + r * 0.22f), 4.2f, StrokeCap.Round)
+                drawCircle(Color.White, radius = 3.2f, center = Offset(leftX + bar3W, cy + r * 0.22f))
+
                 drawLine(TextSecondary, Offset(cx, cy + r * 0.54f), Offset(cx, cy + r * 0.84f), 4f, StrokeCap.Round)
                 drawLine(TextSecondary, Offset(cx - r * 0.46f, cy + r * 0.84f), Offset(cx + r * 0.46f, cy + r * 0.84f), 4f, StrokeCap.Round)
             }

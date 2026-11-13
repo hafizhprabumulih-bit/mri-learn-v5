@@ -4,11 +4,11 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -17,11 +17,15 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import com.example.ui.components.rememberRestorableScrollState
@@ -30,6 +34,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
@@ -65,6 +70,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.example.data.StudyNote
 import com.example.ui.character.AvatarView
 import com.example.ui.character.Expression
@@ -83,6 +89,7 @@ import com.example.ui.theme.RoseDanger
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.util.rememberMriHaptics
 import com.example.viewmodel.MriUiState
 import com.example.viewmodel.MriViewModel
 import java.io.File
@@ -95,6 +102,7 @@ fun NotesScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val haptics = rememberMriHaptics()
     val categories = listOf("SEMUA", "Protokol Klinis", "Fisika Sekuens", "Mitigasi Artefak", "Keselamatan MR", "Catatan Bebas")
     var showExportDialog by rememberSaveable { mutableStateOf(false) }
     var exportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
@@ -225,7 +233,10 @@ fun NotesScreen(
                     val isSelected = state.selectedNoteCategory == cat
                     FilterChip(
                         selected = isSelected,
-                        onClick = { viewModel.setNoteCategory(cat) },
+                        onClick = {
+                            haptics.lightToggle()
+                            viewModel.setNoteCategory(cat)
+                        },
                         label = { Text(cat, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = CyanPrimary,
@@ -269,12 +280,17 @@ fun NotesScreen(
             ) {
                 if (filteredNotes.isEmpty()) {
                     Surface(
+                        onClick = {
+                            haptics.lightToggle()
+                            viewModel.openNoteDialog(null)
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 32.dp),
+                            .padding(vertical = 24.dp)
+                            .testTag("empty_create_note_card"),
                         shape = RoundedCornerShape(16.dp),
                         color = DarkNavySlate,
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CardSlateBorder)
+                        border = BorderStroke(1.2.dp, CyanPrimary.copy(alpha = 0.55f))
                     ) {
                         Column(
                             modifier = Modifier.padding(24.dp),
@@ -289,25 +305,83 @@ fun NotesScreen(
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(
                                 text = "Belum ada catatan pada kategori ini",
-                                fontSize = 13.sp,
+                                fontSize = 13.5.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = TextPrimary
                             )
                             Text(
-                                text = "Klik tombol 'Tulis Catatan' di kanan bawah untuk membuat catatan baru.",
-                                fontSize = 11.sp,
-                                color = TextSecondary,
+                                text = "Ketuk kartu ini untuk langsung membuat catatan baru.",
+                                fontSize = 11.5.sp,
+                                color = CyanBright,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
                     }
                 } else {
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Surface(
+                            onClick = {
+                                haptics.lightToggle()
+                                viewModel.openNoteDialog(null)
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 56.dp)
+                                .testTag("create_note_card"),
+                            shape = RoundedCornerShape(16.dp),
+                            color = CyanDark.copy(alpha = 0.35f),
+                            border = BorderStroke(1.2.dp, CyanPrimary.copy(alpha = 0.7f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = CyanPrimary
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(36.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = "Buat catatan baru",
+                                            tint = DeepObsidian,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Buat Catatan Baru",
+                                        fontSize = 13.5.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        text = "Ketuk kartu ini untuk membuka tempat catatan kosong layar penuh",
+                                        fontSize = 11.sp,
+                                        color = TextSecondary
+                                    )
+                                }
+                            }
+                        }
+
                         filteredNotes.forEach { note ->
                             NoteCard(
                                 note = note,
-                                onEdit = { viewModel.openNoteDialog(note) },
-                                onDelete = { viewModel.deleteNote(note.id) }
+                                onEdit = {
+                                    haptics.lightToggle()
+                                    viewModel.openNoteDialog(note)
+                                },
+                                onDelete = {
+                                    haptics.warningBuzz()
+                                    viewModel.deleteNote(note.id)
+                                }
                             )
                         }
                     }
@@ -322,8 +396,12 @@ fun NotesScreen(
             modifier = Modifier
                 .align(Alignment.BottomEnd)
                 .padding(bottom = 24.dp, end = 20.dp)
+                .defaultMinSize(minHeight = 48.dp)
                 .clip(RoundedCornerShape(24.dp))
-                .clickable { viewModel.openNoteDialog(null) }
+                .clickable {
+                    haptics.lightToggle()
+                    viewModel.openNoteDialog(null)
+                }
                 .testTag("add_note_fab"),
             shape = RoundedCornerShape(24.dp),
             color = CyanPrimary,
@@ -410,10 +488,11 @@ fun NoteCard(
     onDelete: () -> Unit
 ) {
     Card(
+        onClick = onEdit,
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = DarkNavySlate),
-        border = androidx.compose.foundation.BorderStroke(1.dp, CardSlateBorder)
+        border = BorderStroke(1.dp, CardSlateBorder)
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
             Row(
@@ -424,7 +503,7 @@ fun NoteCard(
                 Surface(
                     shape = RoundedCornerShape(6.dp),
                     color = CyanDark,
-                    border = androidx.compose.foundation.BorderStroke(1.dp, CyanPrimary)
+                    border = BorderStroke(1.dp, CyanPrimary)
                 ) {
                     Text(
                         text = note.category,
@@ -441,16 +520,16 @@ fun NoteCard(
                         fontSize = 10.sp,
                         color = TextMuted
                     )
-                    IconButton(onClick = onEdit, modifier = Modifier.size(28.dp)) {
-                        Icon(imageVector = Icons.Default.EditNote, contentDescription = "Edit", tint = CyanBright, modifier = Modifier.size(18.dp))
+                    IconButton(onClick = onEdit, modifier = Modifier.size(48.dp)) {
+                        Icon(imageVector = Icons.Default.EditNote, contentDescription = "Edit catatan", tint = CyanBright, modifier = Modifier.size(19.dp))
                     }
-                    IconButton(onClick = onDelete, modifier = Modifier.size(28.dp)) {
-                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Hapus", tint = RoseDanger, modifier = Modifier.size(16.dp))
+                    IconButton(onClick = onDelete, modifier = Modifier.size(48.dp)) {
+                        Icon(imageVector = Icons.Default.DeleteOutline, contentDescription = "Hapus catatan", tint = RoseDanger, modifier = Modifier.size(18.dp))
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(6.dp))
             Text(
                 text = note.title,
                 fontSize = 14.sp,
@@ -474,6 +553,7 @@ fun NoteEditorDialog(
     onDismiss: () -> Unit,
     onSave: (id: String?, title: String, content: String, category: String) -> Unit
 ) {
+    val haptics = rememberMriHaptics()
     val normalizedInitialCat = when (initialNote?.category?.trim()?.lowercase()) {
         "fisika", "fisika sekuens" -> "Fisika Sekuens"
         "protokol", "klinis", "protokol klinis" -> "Protokol Klinis"
@@ -489,33 +569,70 @@ fun NoteEditorDialog(
 
     val categories = listOf("Catatan Bebas", "Protokol Klinis", "Fisika Sekuens", "Mitigasi Artefak", "Keselamatan MR")
 
-    Dialog(onDismissRequest = onDismiss) {
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = DarkNavySlate),
-            border = androidx.compose.foundation.BorderStroke(1.dp, CardSlateBorder)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        BackHandler(onBack = onDismiss)
+
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .testTag("note_editor_fullscreen"),
+            color = DarkNavySlate
         ) {
-            Column(modifier = Modifier.padding(18.dp)) {
-                Text(
-                    text = if (initialNote != null) "Edit Catatan" else "Tulis Catatan Kosong Baru",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "Tuliskan ringkasan materi, catatan dokter, atau parameter konsol",
-                    fontSize = 11.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .imePadding()
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = if (initialNote != null) "Edit Catatan" else "Tulis Catatan Kosong Baru",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = TextPrimary
+                        )
+                        Text(
+                            text = "Tuliskan ringkasan materi, catatan dokter, atau parameter konsol",
+                            fontSize = 11.5.sp,
+                            color = TextSecondary
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            haptics.lightToggle()
+                            onDismiss()
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Tutup editor catatan",
+                            tint = TextSecondary
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
 
                 // Input Judul
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Judul Catatan", fontSize = 11.sp) },
-                    placeholder = { Text("Contoh: Tips Refokusing Spin Echo 180°", fontSize = 11.sp, color = TextMuted) },
+                    label = { Text("Judul Catatan", fontSize = 11.5.sp) },
+                    placeholder = { Text("Contoh: Tips Refokusing Spin Echo 180°", fontSize = 11.5.sp, color = TextMuted) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
@@ -532,8 +649,8 @@ fun NoteEditorDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 // Pilihan Kategori
-                Text(text = "Kategori Catatan:", fontSize = 11.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
-                Spacer(modifier = Modifier.height(4.dp))
+                Text(text = "Kategori Catatan:", fontSize = 11.5.sp, color = TextSecondary, fontWeight = FontWeight.SemiBold)
+                Spacer(modifier = Modifier.height(6.dp))
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -544,18 +661,22 @@ fun NoteEditorDialog(
                         val isSelected = category == cat
                         Surface(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable { category = cat },
+                                .defaultMinSize(minHeight = 36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .clickable {
+                                    haptics.lightToggle()
+                                    category = cat
+                                },
                             color = if (isSelected) CyanPrimary else DeepObsidian,
-                            shape = RoundedCornerShape(8.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, if (isSelected) CyanBright else CardSlateBorder)
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, if (isSelected) CyanBright else CardSlateBorder)
                         ) {
                             Text(
                                 text = cat,
-                                fontSize = 10.sp,
+                                fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = if (isSelected) DeepObsidian else TextSecondary,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                             )
                         }
                     }
@@ -563,23 +684,24 @@ fun NoteEditorDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Tempat Catatan Kosong (Multi-line Text Area)
+                // Tempat Catatan Kosong Full-Screen (mengisi ruang vertikal secara luas)
                 OutlinedTextField(
                     value = content,
                     onValueChange = { content = it },
-                    label = { Text("Tempat Catatan Kosong", fontSize = 11.sp) },
+                    label = { Text("Tempat Catatan Kosong", fontSize = 11.5.sp) },
                     placeholder = {
                         Text(
-                            text = "Ketik catatan Anda di sini...\nContoh:\n- TR pendek (<600 ms) menghasilkan kontras T1w\n- STIR menggunakan TI ~150ms untuk supresi lemak\n- Pastikan pasien bebas logam sebelum Zona IV",
-                            fontSize = 11.sp,
+                            text = "Ketik catatan Anda di sini...\n\nContoh:\n- TR pendek (<600 ms) menghasilkan kontras T1w\n- STIR menggunakan TI ~150ms untuk supresi lemak\n- Pastikan pasien bebas logam sebelum Zona IV",
+                            fontSize = 12.sp,
                             color = TextMuted,
-                            lineHeight = 16.sp
+                            lineHeight = 18.sp
                         )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(140.dp),
-                    shape = RoundedCornerShape(12.dp),
+                        .weight(1f)
+                        .defaultMinSize(minHeight = 240.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = DeepObsidian,
                         unfocusedContainerColor = DeepObsidian,
@@ -590,28 +712,38 @@ fun NoteEditorDialog(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 // Tombol Simpan & Batal
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        onClick = {
+                            haptics.lightToggle()
+                            onDismiss()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, CardSlateBorder)
+                        border = BorderStroke(1.dp, CardSlateBorder)
                     ) {
-                        Text("Batal", fontSize = 12.sp)
+                        Text("Batal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     }
 
                     Button(
-                        onClick = { onSave(initialNote?.id, title, content, category) },
+                        onClick = {
+                            haptics.mediumAction()
+                            onSave(initialNote?.id, title, content, category)
+                        },
                         enabled = canSave,
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp),
+                        shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = CyanPrimary,
                             disabledContainerColor = CardSlate
@@ -619,7 +751,7 @@ fun NoteEditorDialog(
                     ) {
                         Text(
                             text = "Simpan",
-                            fontSize = 12.sp,
+                            fontSize = 13.sp,
                             color = if (canSave) DeepObsidian else TextMuted,
                             fontWeight = FontWeight.Bold
                         )

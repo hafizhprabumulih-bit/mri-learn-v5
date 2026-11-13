@@ -1,5 +1,10 @@
 package com.example.ui.character
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -14,13 +19,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material.icons.filled.Science
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,8 +51,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
@@ -45,13 +62,22 @@ import com.example.data.CharacterCatalog
 import com.example.data.CharacterCategory
 import com.example.data.CharacterCustomizationState
 import com.example.data.MriRepository
+import com.example.ui.components.RotatingProgressRing
 import com.example.ui.theme.AmberWarning
+import com.example.ui.theme.CharAccentCyan
+import com.example.ui.theme.CharAccentMint
+import com.example.ui.theme.CharBorderSlate
+import com.example.ui.theme.CharCardSelected
+import com.example.ui.theme.CharCardSurface
 import com.example.ui.theme.CharRoomBg
+import com.example.ui.theme.CharTextDim
+import com.example.ui.theme.CharTextPrimary
 import com.example.ui.theme.DeepObsidian
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
 import com.example.util.ItemUnlockState
 import com.example.util.UnlockProgress
+import com.example.util.rememberMriHaptics
 import com.example.viewmodel.MriUiState
 import com.example.viewmodel.MriViewModel
 import kotlinx.coroutines.delay
@@ -136,13 +162,19 @@ fun CharacterRoomScreen(
     }
 
     val haptic = LocalHapticFeedback.current
+    val mriHaptics = rememberMriHaptics()
+    var isDailyShiftExpanded by rememberSaveable { mutableStateOf(false) }
 
     fun triggerAvatarTap(
         customMessage: String? = null,
         hapticType: HapticFeedbackType = HapticFeedbackType.TextHandleMove,
         expression: Expression? = null
     ) {
-        haptic.performHapticFeedback(hapticType)
+        if (hapticType == HapticFeedbackType.LongPress) {
+            mriHaptics.mediumAction()
+        } else {
+            mriHaptics.lightToggle()
+        }
         interactionCount++
         isJumping = true
         forcedExpression = expression
@@ -319,94 +351,226 @@ fun CharacterRoomScreen(
 
             Spacer(modifier = Modifier.height(7.dp))
 
-            androidx.compose.material3.Surface(
+            // Toggle Streak & Shift Nano Hari Ini: default ringkas agar kartu di bawahnya bisa naik;
+            // saat ditekan membuka panel Shift Nano Hari Ini beserta lingkaran progres berputar.
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(16.dp),
-                color = com.example.ui.theme.CharCardSurface,
-                border = androidx.compose.foundation.BorderStroke(
-                    1.dp,
-                    if (dailyShift.isAllComplete) com.example.ui.theme.CharAccentMint else com.example.ui.theme.CharBorderSlate
+                shape = RoundedCornerShape(16.dp),
+                color = CharCardSurface,
+                border = BorderStroke(
+                    1.2.dp,
+                    when {
+                        dailyShift.isAllComplete -> CharAccentMint
+                        isDailyShiftExpanded -> CharAccentCyan.copy(alpha = 0.78f)
+                        else -> CharBorderSlate
+                    }
                 )
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Surface(
+                        onClick = {
+                            mriHaptics.lightToggle()
+                            isDailyShiftExpanded = !isDailyShiftExpanded
+                        },
+                        color = androidx.compose.ui.graphics.Color.Transparent,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .defaultMinSize(minHeight = 56.dp)
+                            .testTag("character_shift_toggle")
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
-                            androidx.compose.material3.Text(
-                                text = "Shift Nano Hari Ini (${dailyShift.completedCount}/${dailyShift.totalCount})",
-                                color = com.example.ui.theme.CharTextPrimary,
-                                fontSize = 12.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
-                            )
-                            androidx.compose.material3.Text(
-                                text = "Pangkat Arcade: ${arcadeStats.highestRank}",
-                                color = com.example.ui.theme.CharTextDim,
-                                fontSize = 10.sp
-                            )
-                        }
-                        Surface(
-                            shape = RoundedCornerShape(999.dp),
-                            color = if (dailyShift.isAllComplete) {
-                                com.example.ui.theme.CharAccentMint.copy(alpha = 0.2f)
-                            } else {
-                                com.example.ui.theme.CharAccentCyan.copy(alpha = 0.16f)
-                            }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 9.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            androidx.compose.material3.Text(
-                                text = "+${dailyShift.bonusXpEarned} XP",
-                                color = if (dailyShift.isAllComplete) com.example.ui.theme.CharAccentMint else com.example.ui.theme.CharAccentCyan,
-                                fontSize = 11.sp,
-                                fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold,
-                                modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                            RotatingProgressRing(
+                                done = dailyShift.completedCount,
+                                total = dailyShift.totalCount,
+                                size = 44.dp,
+                                strokeWidth = 3.8.dp,
+                                centerText = "${dailyShift.completedCount}/${dailyShift.totalCount}",
+                                fontSize = 10.sp,
+                                activeColor = CharAccentCyan,
+                                completeColor = CharAccentMint,
+                                semanticLabel = "Progres Shift Nano ${dailyShift.completedCount} dari ${dailyShift.totalCount}"
                             )
-                        }
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(
-                            Triple("📘 Materi", "${dailyCounts.first.coerceAtMost(1)}/1", dailyCounts.first >= 1),
-                            Triple("⚡ Kuis", "${dailyCounts.second.coerceAtMost(5)}/5", dailyCounts.second >= 5),
-                            Triple("🎛️ Lab/Game", "${dailyCounts.third.coerceAtMost(1)}/1", dailyCounts.third >= 1)
-                        ).forEach { (label, prog, isDone) ->
+
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.LocalFireDepartment,
+                                        contentDescription = null,
+                                        tint = AmberWarning,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                    Text(
+                                        text = "Streak Nano Hari Ini · ${state.studyStreakDays} Hari",
+                                        color = CharTextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                                Text(
+                                    text = if (isDailyShiftExpanded) {
+                                        "Shift Nano Hari Ini · +${dailyShift.bonusXpEarned} XP · ${arcadeStats.highestRank}"
+                                    } else {
+                                        "Ketuk untuk lihat Shift Nano Hari Ini (${dailyShift.completedCount}/${dailyShift.totalCount})"
+                                    },
+                                    color = CharTextDim,
+                                    fontSize = 10.5.sp,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+
                             Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(10.dp),
-                                color = if (isDone) com.example.ui.theme.CharCardSelected else com.example.ui.theme.CharRoomBg.copy(alpha = 0.65f),
+                                shape = RoundedCornerShape(999.dp),
+                                color = if (isDailyShiftExpanded) {
+                                    CharAccentCyan.copy(alpha = 0.22f)
+                                } else {
+                                    CharRoomBg.copy(alpha = 0.75f)
+                                },
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isDone) com.example.ui.theme.CharAccentMint.copy(alpha = 0.7f) else com.example.ui.theme.CharBorderSlate
+                                    if (isDailyShiftExpanded) CharAccentCyan else CharBorderSlate
                                 )
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(2.dp)
                                 ) {
                                     Text(
-                                        text = label,
-                                        fontSize = 9.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = if (isDone) com.example.ui.theme.CharTextPrimary else com.example.ui.theme.CharTextDim,
-                                        maxLines = 1
+                                        text = if (isDailyShiftExpanded) "Tutup" else "Shift",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isDailyShiftExpanded) CharAccentCyan else CharTextDim
+                                    )
+                                    Icon(
+                                        imageVector = if (isDailyShiftExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                                        contentDescription = if (isDailyShiftExpanded) "Tutup Shift Nano" else "Buka Shift Nano",
+                                        tint = if (isDailyShiftExpanded) CharAccentCyan else CharTextDim,
+                                        modifier = Modifier.size(15.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = isDailyShiftExpanded,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Shift Nano Hari Ini (${dailyShift.completedCount}/${dailyShift.totalCount})",
+                                        color = CharTextPrimary,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
                                     )
                                     Text(
-                                        text = if (isDone) "✓" else prog,
-                                        fontSize = 9.5.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = if (isDone) com.example.ui.theme.CharAccentMint else com.example.ui.theme.CharAccentCyan
+                                        text = "Pangkat Arcade: ${arcadeStats.highestRank} · Target Streak Mingguan",
+                                        color = CharTextDim,
+                                        fontSize = 10.sp
                                     )
+                                }
+                                Surface(
+                                    shape = RoundedCornerShape(999.dp),
+                                    color = if (dailyShift.isAllComplete) {
+                                        CharAccentMint.copy(alpha = 0.2f)
+                                    } else {
+                                        CharAccentCyan.copy(alpha = 0.16f)
+                                    }
+                                ) {
+                                    Text(
+                                        text = "+${dailyShift.bonusXpEarned} XP",
+                                        color = if (dailyShift.isAllComplete) CharAccentMint else CharAccentCyan,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        modifier = Modifier.padding(horizontal = 9.dp, vertical = 3.dp)
+                                    )
+                                }
+                            }
+
+                            val quizProgressCount = dailyCounts.second.coerceAtMost(5)
+                            val shiftItems = listOf(
+                                Triple("Materi", Icons.AutoMirrored.Filled.MenuBook, dailyCounts.first.coerceAtMost(1) to 1),
+                                Triple("Kuis", Icons.Default.Quiz, quizProgressCount to 5),
+                                Triple("Lab/Game", Icons.Default.Science, dailyCounts.third.coerceAtMost(1) to 1)
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                shiftItems.forEach { (label, iconVec, progPair) ->
+                                    val (doneVal, totalVal) = progPair
+                                    val isDone = doneVal >= totalVal
+                                    Surface(
+                                        modifier = Modifier.weight(1f),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = if (isDone) CharCardSelected else CharRoomBg.copy(alpha = 0.72f),
+                                        border = BorderStroke(
+                                            1.dp,
+                                            if (isDone) CharAccentMint.copy(alpha = 0.7f) else CharBorderSlate
+                                        )
+                                    ) {
+                                        Column(
+                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                                        ) {
+                                            RotatingProgressRing(
+                                                done = doneVal,
+                                                total = totalVal,
+                                                size = 44.dp,
+                                                strokeWidth = 3.6.dp,
+                                                centerText = "$doneVal/$totalVal",
+                                                fontSize = 10.sp,
+                                                activeColor = CharAccentCyan,
+                                                completeColor = CharAccentMint,
+                                                semanticLabel = "Progres $label $doneVal dari $totalVal"
+                                            )
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(3.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = iconVec,
+                                                    contentDescription = null,
+                                                    tint = if (isDone) CharAccentMint else CharAccentCyan,
+                                                    modifier = Modifier.size(12.dp)
+                                                )
+                                                Text(
+                                                    text = label,
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = if (isDone) CharTextPrimary else CharTextDim,
+                                                    maxLines = 1
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -419,7 +583,7 @@ fun CharacterRoomScreen(
                 selectedCategory = selectedCategory,
                 accentPalette = accentPalette,
                 onSelectCategory = { category ->
-                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    mriHaptics.lightToggle()
                     selectedCategory = category
                 }
             )
@@ -604,17 +768,6 @@ fun CharacterRoomScreen(
             val badgeShowcase = remember(state.modulesList) {
                 if (state.modulesList.isNotEmpty()) {
                     state.modulesList.map { mod ->
-                        val icon = when {
-                            mod.code.startsWith("M01") -> "🧲"
-                            mod.code.startsWith("M02") -> "📡"
-                            mod.code.startsWith("M03") -> "⚡"
-                            mod.code.startsWith("M04") -> "🖼️"
-                            mod.code.startsWith("M05") -> "❄️"
-                            mod.code.startsWith("M06") -> "🎛️"
-                            mod.code.startsWith("M07") -> "🛡️"
-                            mod.code.startsWith("M08") -> "🩻"
-                            else -> "👑"
-                        }
                         val shortLabel = when (mod.code) {
                             "M01" -> "Fisika Spin"
                             "M02" -> "Relaksasi"
@@ -636,29 +789,29 @@ fun CharacterRoomScreen(
                             "M09" -> "Konsol"
                             else -> mod.title.take(10)
                         }
-                        Triple(mod.code, "$icon $shortLabel", mod)
+                        Triple(mod.code, shortLabel, mod)
                     }
                 } else {
                     listOf(
-                        Triple("M01", "🧲 Fisika", null),
-                        Triple("M02", "📡 Relaksasi", null),
-                        Triple("M03A", "⚡ Sekuens", null),
-                        Triple("M04A", "🖼️ K-space", null),
-                        Triple("M05", "❄️ Kriogenik", null),
-                        Triple("M06A", "🎛️ Gradien", null),
-                        Triple("M07A", "🛡️ Safety", null),
-                        Triple("M08A", "🩻 Artefak", null),
-                        Triple("M09", "👑 Konsol", null)
+                        Triple("M01", "Fisika", null),
+                        Triple("M02", "Relaksasi", null),
+                        Triple("M03A", "Sekuens", null),
+                        Triple("M04A", "K-space", null),
+                        Triple("M05", "Kriogenik", null),
+                        Triple("M06A", "Gradien", null),
+                        Triple("M07A", "Safety", null),
+                        Triple("M08A", "Artefak", null),
+                        Triple("M09", "Konsol", null)
                     )
                 }
             }
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = com.example.ui.theme.CharCardSurface,
+                color = CharCardSurface,
                 border = BorderStroke(
                     1.2.dp,
-                    if (isBadgeGalleryOpen) com.example.ui.theme.CharAccentCyan.copy(alpha = 0.7f) else com.example.ui.theme.CharBorderSlate
+                    if (isBadgeGalleryOpen) CharAccentCyan.copy(alpha = 0.7f) else CharBorderSlate
                 )
             ) {
                 Column(
@@ -667,7 +820,7 @@ fun CharacterRoomScreen(
                     // Toggle khusus pembuka/penutup Galeri Lencana Modul
                     Surface(
                         onClick = {
-                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            mriHaptics.lightToggle()
                             isBadgeGalleryOpen = !isBadgeGalleryOpen
                         },
                         color = androidx.compose.ui.graphics.Color.Transparent,
@@ -684,45 +837,55 @@ fun CharacterRoomScreen(
                         ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                modifier = Modifier.weight(1f)
                             ) {
-                                Text(
-                                    text = "🏅 Galeri Lencana Modul",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = com.example.ui.theme.CharTextPrimary
+                                RotatingProgressRing(
+                                    done = completedModuleIds.size,
+                                    total = state.modulesList.size.coerceAtLeast(1),
+                                    size = 38.dp,
+                                    strokeWidth = 3.2.dp,
+                                    centerText = "${completedModuleIds.size}/${state.modulesList.size}",
+                                    fontSize = 9.sp,
+                                    activeColor = CharAccentCyan,
+                                    completeColor = CharAccentMint,
+                                    semanticLabel = "Progres lencana ${completedModuleIds.size} dari ${state.modulesList.size}"
                                 )
-                                Surface(
-                                    shape = RoundedCornerShape(999.dp),
-                                    color = com.example.ui.theme.CharAccentCyan.copy(alpha = 0.16f),
-                                    border = BorderStroke(1.dp, com.example.ui.theme.CharAccentCyan.copy(alpha = 0.5f))
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                                 ) {
+                                    Icon(
+                                        imageVector = Icons.Default.EmojiEvents,
+                                        contentDescription = null,
+                                        tint = AmberWarning,
+                                        modifier = Modifier.size(16.dp)
+                                    )
                                     Text(
-                                        text = "${completedModuleIds.size}/${state.modulesList.size}",
-                                        fontSize = 10.5.sp,
+                                        text = "Galeri Lencana Modul",
+                                        fontSize = 13.sp,
                                         fontWeight = FontWeight.ExtraBold,
-                                        color = com.example.ui.theme.CharAccentCyan,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                        color = CharTextPrimary
                                     )
                                 }
                             }
                             Surface(
                                 shape = RoundedCornerShape(999.dp),
                                 color = if (isBadgeGalleryOpen) {
-                                    com.example.ui.theme.CharAccentCyan.copy(alpha = 0.2f)
+                                    CharAccentCyan.copy(alpha = 0.2f)
                                 } else {
-                                    com.example.ui.theme.CharRoomBg.copy(alpha = 0.75f)
+                                    CharRoomBg.copy(alpha = 0.75f)
                                 },
                                 border = BorderStroke(
                                     1.dp,
-                                    if (isBadgeGalleryOpen) com.example.ui.theme.CharAccentCyan else com.example.ui.theme.CharBorderSlate
+                                    if (isBadgeGalleryOpen) CharAccentCyan else CharBorderSlate
                                 )
                             ) {
                                 Text(
                                     text = if (isBadgeGalleryOpen) "Tutup ▲" else "Buka ▼",
                                     fontSize = 10.5.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = if (isBadgeGalleryOpen) com.example.ui.theme.CharAccentCyan else com.example.ui.theme.CharTextDim,
+                                    color = if (isBadgeGalleryOpen) CharAccentCyan else CharTextDim,
                                     modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                                 )
                             }

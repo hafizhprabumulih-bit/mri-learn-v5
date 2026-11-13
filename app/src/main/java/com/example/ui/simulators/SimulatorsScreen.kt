@@ -258,9 +258,13 @@ private fun SimChip(
     selected: Boolean,
     onClick: () -> Unit
 ) {
+    val haptics = com.example.util.rememberMriHaptics()
     FilterChip(
         selected = selected,
-        onClick = onClick,
+        onClick = {
+            haptics.lightToggle()
+            onClick()
+        },
         leadingIcon = {
             Icon(
                 imageVector = icon,

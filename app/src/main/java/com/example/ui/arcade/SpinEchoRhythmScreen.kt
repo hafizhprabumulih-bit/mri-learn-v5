@@ -1,13 +1,20 @@
 package com.example.ui.arcade
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
@@ -19,6 +26,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.Button
@@ -29,8 +37,10 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -41,17 +51,25 @@ import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.R
 import com.example.data.CharacterCustomizationState
 import com.example.ui.character.AvatarView
 import com.example.ui.character.Expression
+import com.example.ui.components.MriGlobalAssetImage
+import com.example.ui.components.MriGlobalAssetKey
 import com.example.ui.theme.AmberWarning
 import com.example.ui.theme.CardSlateBorder
 import com.example.ui.theme.CharActionOrange
@@ -66,6 +84,7 @@ import com.example.ui.theme.TextSecondary
 import com.example.util.MriArcadeEngine
 import com.example.util.PulseBeatKind
 import com.example.util.SpinEchoRhythmState
+import com.example.util.rememberMriHaptics
 import kotlinx.coroutines.delay
 import kotlin.math.PI
 import kotlin.math.sin
@@ -78,16 +97,31 @@ fun SpinEchoRhythmScreen(
     onGameFinished: (score: Int, rankTitle: String) -> Unit,
     onBack: () -> Unit
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptics = rememberMriHaptics()
     var gameState by remember { mutableStateOf(SpinEchoRhythmState()) }
     var isPaused by remember { mutableStateOf(false) }
     var reported by remember { mutableStateOf(false) }
     var activeLaneFlash by remember { mutableStateOf<Int?>(null) }
+    var nanoTipTap by remember { mutableIntStateOf(0) }
+    var customNanoTip by remember { mutableStateOf<String?>(null) }
+
+    val nanoBounce by animateFloatAsState(
+        targetValue = if (nanoTipTap % 2 == 1) 1.12f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
+        label = "rhythm_nano_bounce"
+    )
 
     LaunchedEffect(activeLaneFlash) {
         if (activeLaneFlash != null) {
             delay(160L)
             activeLaneFlash = null
+        }
+    }
+
+    LaunchedEffect(customNanoTip, nanoTipTap) {
+        if (customNanoTip != null) {
+            delay(2200L)
+            customNanoTip = null
         }
     }
 
@@ -105,7 +139,7 @@ fun SpinEchoRhythmScreen(
         }
     }
 
-    androidx.compose.runtime.DisposableEffect(Unit) {
+    DisposableEffect(Unit) {
         onDispose {
             if (gameState.score > 0 && !reported) {
                 onGameFinished(gameState.score, gameState.rankTitle)
@@ -121,12 +155,17 @@ fun SpinEchoRhythmScreen(
             val nowNs = System.nanoTime()
             val dt = ((nowNs - lastNs) / 1_000_000_000f).coerceIn(0.001f, 0.05f)
             lastNs = nowNs
+            val prevLives = gameState.lives
             gameState = MriArcadeEngine.stepSpinEchoRhythm(gameState, dt)
+            if (gameState.lives < prevLives) {
+                haptics.warningBuzz()
+            }
         }
     }
 
     LaunchedEffect(gameState.isGameOver) {
         if (gameState.isGameOver && !reported) {
+            haptics.completionBuzz()
             reported = true
             onGameFinished(gameState.score, gameState.rankTitle)
         }
@@ -145,6 +184,7 @@ fun SpinEchoRhythmScreen(
         ) {
             IconButton(
                 onClick = {
+                    haptics.lightToggle()
                     if (gameState.score > 0 && !reported) {
                         reported = true
                         onGameFinished(gameState.score, gameState.rankTitle)
@@ -161,19 +201,35 @@ fun SpinEchoRhythmScreen(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text("Spin Echo Rhythm", fontSize = 16.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
-                Text(
-                    text = if (gameState.isTurboMode) {
-                        "🔥 MODE TSE 2x AKTIF! · Rekor: ${maxOf(bestScore, gameState.score)}"
-                    } else {
-                        "90° → 180° → Baca Echo · Rekor: ${maxOf(bestScore, gameState.score)}"
-                    },
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = if (gameState.isTurboMode) AmberWarning else CyanBright
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    if (gameState.isTurboMode) {
+                        Icon(
+                            imageVector = Icons.Default.Bolt,
+                            contentDescription = null,
+                            tint = AmberWarning,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                    Text(
+                        text = if (gameState.isTurboMode) {
+                            "MODE TSE 2x AKTIF! · Rekor: ${maxOf(bestScore, gameState.score)}"
+                        } else {
+                            "90° → 180° → Baca Echo · Rekor: ${maxOf(bestScore, gameState.score)}"
+                        },
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (gameState.isTurboMode) AmberWarning else CyanBright
+                    )
+                }
             }
             IconButton(
-                onClick = { if (!gameState.isGameOver) isPaused = !isPaused },
+                onClick = {
+                    haptics.lightToggle()
+                    if (!gameState.isGameOver) isPaused = !isPaused
+                },
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(
@@ -209,16 +265,39 @@ fun SpinEchoRhythmScreen(
                 }
                 Column(horizontalAlignment = Alignment.End) {
                     Text("KOHERENSI", fontSize = 10.sp, color = TextSecondary)
-                    Text("⚡".repeat(gameState.lives.coerceAtLeast(0)).ifBlank { "Habis" }, fontSize = 15.sp, color = EmeraldSuccess)
+                    if (gameState.lives <= 0) {
+                        Text("Habis", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = RoseDanger)
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                            repeat(gameState.lives) {
+                                MriGlobalAssetImage(
+                                    assetKey = MriGlobalAssetKey.SPARK_BOLT,
+                                    modifier = Modifier.size(18.dp),
+                                    tintAccent = EmeraldSuccess
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Nano & Osiloskop Echo
+        // Nano Interaktif & Osiloskop Echo
         Surface(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(14.dp))
+                .clickable(role = Role.Button) {
+                    haptics.lightToggle()
+                    nanoTipTap++
+                    customNanoTip = when {
+                        gameState.isTurboMode -> "Nano: Turbo Spin Echo 2x menyala! Banyak gema 180° muncul berurutan!"
+                        else -> "Nano: Ketuk tombol atau lajur tepat saat blok menyentuh cincin target di bawah!"
+                    }
+                }
+                .semantics { contentDescription = "Osiloskop Echo dan Nano interaktif, ketuk untuk tips" },
             shape = RoundedCornerShape(14.dp),
             color = DarkNavySlate,
             border = BorderStroke(1.dp, CardSlateBorder)
@@ -236,16 +315,22 @@ fun SpinEchoRhythmScreen(
                     expression = when {
                         gameState.isGameOver -> Expression.SEDIH
                         gameState.combo >= 4 -> Expression.BANGGA
+                        customNanoTip != null -> Expression.BERPIKIR
                         else -> Expression.SENANG
                     },
-                    modifier = Modifier.size(46.dp)
+                    modifier = Modifier
+                        .size(46.dp)
+                        .graphicsLayer {
+                            scaleX = nanoBounce
+                            scaleY = nanoBounce
+                        }
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = gameState.lastJudgment,
+                        text = customNanoTip ?: gameState.lastJudgment,
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = TextPrimary
+                        color = if (customNanoTip != null) CyanBright else TextPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Canvas(
@@ -270,7 +355,7 @@ fun SpinEchoRhythmScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // Jalur Ritme 3-Kolom (90° RF | 180° Refocus | Baca Echo) — bisa diketuk langsung!
+        // Jalur Ritme 3-Kolom dengan latar panggung sekuens
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -282,7 +367,6 @@ fun SpinEchoRhythmScreen(
                     detectTapGestures(
                         onPress = { tapOffset ->
                             if (!isPaused && !gameState.isGameOver) {
-                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                                 val laneIdx = ((tapOffset.x / size.width.coerceAtLeast(1)) * 3f).toInt().coerceIn(0, 2)
                                 activeLaneFlash = laneIdx
                                 val preferred = when (laneIdx) {
@@ -290,18 +374,28 @@ fun SpinEchoRhythmScreen(
                                     1 -> PulseBeatKind.REFOCUS_180
                                     else -> PulseBeatKind.ECHO_READ
                                 }
-                                gameState = MriArcadeEngine.tapRhythmLane(gameState, preferred)
+                                val next = MriArcadeEngine.tapRhythmLane(gameState, preferred)
+                                if (next.combo > gameState.combo) haptics.mediumAction() else haptics.warningBuzz()
+                                gameState = next
                             }
                         }
                     )
                 }
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.img_arcade_rhythm_stage),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .graphicsLayer { alpha = 0.40f },
+                contentScale = ContentScale.Crop
+            )
+
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val laneW = size.width / 3f
                 val targetY = size.height * 0.82f
                 val laneColors = listOf(CyanBright, CharActionOrange, EmeraldSuccess)
 
-                // Latar kisi matriks K-space halus yang terisi seiring skor/combo
                 val kRows = 8
                 val filledRows = ((gameState.score / 180) + (gameState.combo / 2)).coerceIn(1, kRows)
                 for (r in 0 until kRows) {
@@ -315,16 +409,14 @@ fun SpinEchoRhythmScreen(
                     )
                 }
 
-                // Kilatan lajur saat diketuk
                 activeLaneFlash?.let { flashLane ->
                     drawRect(
-                        color = laneColors[flashLane].copy(alpha = 0.16f),
+                        color = laneColors[flashLane].copy(alpha = 0.18f),
                         topLeft = Offset(laneW * flashLane, 0f),
                         size = Size(laneW, size.height)
                     )
                 }
 
-                // Garis pemisah 3 lajur
                 for (i in 1..2) {
                     drawLine(
                         color = CardSlateBorder.copy(alpha = 0.7f),
@@ -334,7 +426,6 @@ fun SpinEchoRhythmScreen(
                     )
                 }
 
-                // Zona garis target ketukan di 3 lajur
                 for (lane in 0..2) {
                     val cx = laneW * lane + laneW * 0.5f
                     val col = laneColors[lane]
@@ -360,7 +451,6 @@ fun SpinEchoRhythmScreen(
                     strokeWidth = 4f
                 )
 
-                // Gambar tiap pulsa pada lajurnya masing-masing + simbol gelombang di dalam balok
                 gameState.notes.forEach { note ->
                     val y = note.progress * targetY
                     val (laneIdx, color) = when (note.kind) {
@@ -370,7 +460,6 @@ fun SpinEchoRhythmScreen(
                     }
                     val noteLeft = laneW * laneIdx + 12.dp.toPx()
                     val noteW = laneW - 24.dp.toPx()
-                    // 3D base pada balok ritme
                     drawRoundRect(
                         color = color.copy(alpha = 0.42f),
                         topLeft = Offset(noteLeft, y - 12.dp.toPx()),
@@ -392,7 +481,6 @@ fun SpinEchoRhythmScreen(
                 }
             }
 
-            // Label pulsa terdekat di kanan atas trek
             val nextNote = gameState.notes.minByOrNull { kotlin.math.abs(it.progress - 1f) }
             if (nextNote != null && !gameState.isGameOver) {
                 Surface(
@@ -421,7 +509,10 @@ fun SpinEchoRhythmScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Button(
-                        onClick = { isPaused = false },
+                        onClick = {
+                            haptics.lightToggle()
+                            isPaused = false
+                        },
                         modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = CyanPrimary, contentColor = DeepObsidian)
                     ) {
@@ -449,6 +540,11 @@ fun SpinEchoRhythmScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
+                            MriGlobalAssetImage(
+                                assetKey = MriGlobalAssetKey.TROPHY_MEDAL,
+                                modifier = Modifier.size(44.dp),
+                                tintAccent = AmberWarning
+                            )
                             Text("Sekuens Ritme Selesai!", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
                             Text("Pangkat: ${gameState.rankTitle}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = AmberWarning)
                             Text("Skor: ${gameState.score} · Rekor: $displayBest", fontSize = 14.sp, color = CyanBright, fontWeight = FontWeight.SemiBold)
@@ -461,6 +557,7 @@ fun SpinEchoRhythmScreen(
                                 }
                                 Button(
                                     onClick = {
+                                        haptics.lightToggle()
                                         gameState = SpinEchoRhythmState()
                                         reported = false
                                         isPaused = false
@@ -479,7 +576,6 @@ fun SpinEchoRhythmScreen(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        // 3 Tombol Lajur Pulsa Responsif (90° RF | 180° Refocus | Baca Echo)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -492,9 +588,10 @@ fun SpinEchoRhythmScreen(
                 Button(
                     onClick = {
                         if (!isPaused && !gameState.isGameOver) {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                             activeLaneFlash = idx
-                            gameState = MriArcadeEngine.tapRhythmLane(gameState, kind)
+                            val next = MriArcadeEngine.tapRhythmLane(gameState, kind)
+                            if (next.combo > gameState.combo) haptics.mediumAction() else haptics.warningBuzz()
+                            gameState = next
                         }
                     },
                     enabled = !isPaused && !gameState.isGameOver,
@@ -502,7 +599,7 @@ fun SpinEchoRhythmScreen(
                         .weight(1f)
                         .height(54.dp),
                     shape = RoundedCornerShape(14.dp),
-                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp, vertical = 6.dp),
+                    contentPadding = PaddingValues(horizontal = 6.dp, vertical = 6.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = btnColor,
                         contentColor = DeepObsidian

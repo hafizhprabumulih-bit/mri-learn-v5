@@ -28,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +64,10 @@ fun ModuleCompletedScreen(
     onReturnToPath: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val haptics = com.example.util.rememberMriHaptics()
+    LaunchedEffect(module.id) {
+        haptics.completionBuzz()
+    }
     BackHandler(onBack = onReturnToPath)
 
     Box(

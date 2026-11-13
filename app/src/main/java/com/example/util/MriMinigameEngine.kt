@@ -1,6 +1,9 @@
 package com.example.util
 
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.cos
+import kotlin.random.Random
 
 enum class MinigameKind(val key: String, val title: String, val subtitle: String, val durationSec: Int) {
     ZONE_SCREENING(
@@ -31,7 +34,8 @@ data class ScreeningItem(
     val emoji: String,
     val safetyClass: SafetyClass,
     val allowIntoZone4: Boolean,
-    val reason: String
+    val reason: String,
+    val assetKey: String = ""
 )
 
 enum class TapAccuracy(val label: String, val basePoints: Int) {
@@ -58,27 +62,27 @@ data class ContrastArtifactQuestion(
 )
 
 /**
- * Engine murni untuk 3 minigame edukatif MRI berdurasi singkat ("Zona Cepat Nano").
+ * Engine murni (teroptimasi) untuk 3 minigame edukatif MRI berdurasi singkat ("Zona Cepat Nano").
  */
 object MriMinigameEngine {
 
     val screeningBank: List<ScreeningItem> = listOf(
-        ScreeningItem("scr_o2", "Tabung O₂ Baja", "🧯", SafetyClass.MR_UNSAFE, false, "Baja feromagnetik berisiko menjadi proyektil di Zona IV."),
-        ScreeningItem("scr_clip", "Klip Aneurisma Feromagnetik Lama", "📎", SafetyClass.MR_UNSAFE, false, "Klip lama berisiko mengalami torsi & pergeseran akibat medan B0."),
-        ScreeningItem("scr_pacer_old", "Pacu Jantung Non-MR", "❤️", SafetyClass.MR_UNSAFE, false, "Implan non-MR berisiko malafungsi dan arus induksi RF."),
-        ScreeningItem("scr_scissors", "Gunting Bedah Baja", "✂️", SafetyClass.MR_UNSAFE, false, "Benda tajam feromagnetik sangat berbahaya tertarik ke bore magnet."),
-        ScreeningItem("scr_watch", "Jam Tangan Mekanik", "⌚", SafetyClass.MR_UNSAFE, false, "Komponen logam tertarik B0 dan mekanismenya bisa rusak."),
-        ScreeningItem("scr_coin", "Koin & Kunci Saku", "🔑", SafetyClass.MR_UNSAFE, false, "Seluruh benda logam saku wajib dilepas di Zona II."),
-        ScreeningItem("scr_card", "Kartu ATM Strip Magnetik", "💳", SafetyClass.MR_UNSAFE, false, "Medan magnet B0 langsung menghapus data pita magnetik kartu."),
-        ScreeningItem("scr_chair_fe", "Kursi Roda Besi Biasa", "🦽", SafetyClass.MR_UNSAFE, false, "Harus diganti kursi roda khusus MR Safe non-feromagnetik."),
-        ScreeningItem("scr_pillow", "Bantal Busa & Selimut Polos", "🛏️", SafetyClass.MR_SAFE, true, "Bahan non-konduktif dan non-magnetik aman masuk Zona IV."),
-        ScreeningItem("scr_chair_mr", "Kursi Roda Aluminium MR Safe", "♿", SafetyClass.MR_SAFE, true, "Berlabel MR Safe, bebas feromagnetik sehingga aman di Zona IV."),
-        ScreeningItem("scr_earplug", "Penyumbat Telinga Busa", "🎧", SafetyClass.MR_SAFE, true, "Wajib & aman untuk melindungi pendengaran dari bising gradien."),
-        ScreeningItem("scr_gown", "Gaun Pasien Katun Tanpa Logam", "👕", SafetyClass.MR_SAFE, true, "Kain bebas kancing/benang logam aman untuk pemindaian MRI."),
-        ScreeningItem("scr_gd", "Vial Kontras Gadolinium Kelasi", "🧪", SafetyClass.MR_SAFE, true, "Cairan kontras non-feromagnetik aman disiapkan sesuai protokol."),
-        ScreeningItem("scr_phantom", "Phantom QA ACR Plastik", "🫧", SafetyClass.MR_SAFE, true, "Wadah akrilik berisi larutan uji standar aman untuk kalibrasi bore."),
-        ScreeningItem("scr_pacer_cond", "Implan MR Conditional (Syarat Terpenuhi)", "🩺", SafetyClass.MR_CONDITIONAL, true, "Aman masuk hanya bila seluruh syarat B0 & SAR telah diverifikasi."),
-        ScreeningItem("scr_stent_cond", "Stent Koroner MR Conditional (Terverifikasi)", "🫀", SafetyClass.MR_CONDITIONAL, true, "Diizinkan setelah verifikasi tipe implan dan batas kekuatan magnet.")
+        ScreeningItem("scr_o2", "Tabung O₂ Baja", "O2", SafetyClass.MR_UNSAFE, false, "Baja feromagnetik berisiko menjadi proyektil di Zona IV.", "TABUNG_O2"),
+        ScreeningItem("scr_clip", "Klip Aneurisma Feromagnetik Lama", "KLIP", SafetyClass.MR_UNSAFE, false, "Klip lama berisiko mengalami torsi & pergeseran akibat medan B0.", "KLIP_LOGAM"),
+        ScreeningItem("scr_pacer_old", "Pacu Jantung Non-MR", "PACER", SafetyClass.MR_UNSAFE, false, "Implan non-MR berisiko malafungsi dan arus induksi RF.", "PACEMAKER"),
+        ScreeningItem("scr_scissors", "Gunting Bedah Baja", "GUNTING", SafetyClass.MR_UNSAFE, false, "Benda tajam feromagnetik sangat berbahaya tertarik ke bore magnet.", "GUNTING_BAJA"),
+        ScreeningItem("scr_watch", "Jam Tangan Mekanik", "JAM", SafetyClass.MR_UNSAFE, false, "Komponen logam tertarik B0 dan mekanismenya bisa rusak.", "JAM_MEKANIK"),
+        ScreeningItem("scr_coin", "Koin & Kunci Saku", "KUNCI", SafetyClass.MR_UNSAFE, false, "Seluruh benda logam saku wajib dilepas di Zona II.", "KOIN_KUNCI"),
+        ScreeningItem("scr_card", "Kartu ATM Strip Magnetik", "ATM", SafetyClass.MR_UNSAFE, false, "Medan magnet B0 langsung menghapus data pita magnetik kartu.", "KARTU_ATM"),
+        ScreeningItem("scr_chair_fe", "Kursi Roda Besi Biasa", "KURSI", SafetyClass.MR_UNSAFE, false, "Harus diganti kursi roda khusus MR Safe non-feromagnetik.", "KURSI_RODA_BESI"),
+        ScreeningItem("scr_pillow", "Bantal Busa & Selimut Polos", "BANTAL", SafetyClass.MR_SAFE, true, "Bahan non-konduktif dan non-magnetik aman masuk Zona IV.", "BANTAL_BUSA"),
+        ScreeningItem("scr_chair_mr", "Kursi Roda Aluminium MR Safe", "KURSI_MR", SafetyClass.MR_SAFE, true, "Berlabel MR Safe, bebas feromagnetik sehingga aman di Zona IV.", "KURSI_RODA_MR"),
+        ScreeningItem("scr_earplug", "Penyumbat Telinga Busa", "EARPLUG", SafetyClass.MR_SAFE, true, "Wajib & aman untuk melindungi pendengaran dari bising gradien.", "EARPLUG"),
+        ScreeningItem("scr_gown", "Gaun Pasien Katun Tanpa Logam", "GAUN", SafetyClass.MR_SAFE, true, "Kain bebas kancing/benang logam aman untuk pemindaian MRI.", "GAUN_KATUN"),
+        ScreeningItem("scr_gd", "Vial Kontras Gadolinium Kelasi", "VIAL", SafetyClass.MR_SAFE, true, "Cairan kontras non-feromagnetik aman disiapkan sesuai protokol.", "VIAL_KONTRAS"),
+        ScreeningItem("scr_phantom", "Phantom QA ACR Plastik", "PHANTOM", SafetyClass.MR_SAFE, true, "Wadah akrilik berisi larutan uji standar aman untuk kalibrasi bore.", "PHANTOM_ACR"),
+        ScreeningItem("scr_pacer_cond", "Implan MR Conditional (Syarat Terpenuhi)", "COND", SafetyClass.MR_CONDITIONAL, true, "Aman masuk hanya bila seluruh syarat B0 & SAR telah diverifikasi.", "STETOSKOP"),
+        ScreeningItem("scr_stent_cond", "Stent Koroner MR Conditional (Terverifikasi)", "STENT", SafetyClass.MR_CONDITIONAL, true, "Diizinkan setelah verifikasi tipe implan dan batas kekuatan magnet.", "STENT_COND")
     )
 
     val larmorChallenges: List<LarmorChallenge> = listOf(
@@ -189,6 +193,50 @@ object MriMinigameEngine {
             explanation = "Perbedaan kerentanan magnetik logam mengubah medan lokal B0 secara drastis (lebih parah di GRE)."
         )
     )
+
+    /**
+     * Mengacak deck tantangan tanpa mengulang elemen terakhir pada awal siklus berikutnya.
+     */
+    fun <T> buildNonRepeatingDeck(
+        items: List<T>,
+        previousLast: T? = null,
+        random: Random = Random.Default
+    ): List<T> {
+        if (items.size <= 1) return items
+        val shuffled = items.shuffled(random).toMutableList()
+        if (previousLast != null && shuffled.first() == previousLast) {
+            val swapIndex = 1 + random.nextInt(shuffled.size - 1)
+            val tmp = shuffled[0]
+            shuffled[0] = shuffled[swapIndex]
+            shuffled[swapIndex] = tmp
+        }
+        return shuffled
+    }
+
+    /**
+     * Mengakumulasi fase osilasi jarum Larmor (0f..2f) secara kontinu per delta frame
+     * agar perubahan kecepatan kombo tidak membuat jarum melompat.
+     */
+    fun advanceLarmorPhase(
+        currentPhase: Float,
+        deltaSec: Float,
+        speedMultiplier: Float,
+        combo: Int
+    ): Float {
+        if (deltaSec <= 0f) return currentPhase
+        val comboBoost = 1f + (combo.coerceIn(0, 6) * 0.08f)
+        val halfCyclesPerSec = 0.72f * speedMultiplier.coerceAtLeast(0.4f) * comboBoost
+        return (currentPhase + deltaSec.coerceAtMost(0.05f) * halfCyclesPerSec) % 2f
+    }
+
+    /**
+     * Memetakan fase [0..2) ke posisi jarum ter-normalisasi [0.06..0.94] dengan kurva kosinus halus.
+     */
+    fun needleFromPhase(phase: Float): Float {
+        val norm = ((phase % 2f) + 2f) % 2f
+        val eased = (1f - cos(norm * PI.toFloat())) * 0.5f
+        return (0.06f + eased * 0.88f).coerceIn(0.06f, 0.94f)
+    }
 
     fun evaluateLarmorTap(needleNormalized: Float, targetNormalized: Float): TapAccuracy {
         val diff = abs(needleNormalized - targetNormalized)

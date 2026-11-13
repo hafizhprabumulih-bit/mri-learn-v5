@@ -136,7 +136,7 @@ fun QuizScreen(
     val activeSubmitted = if (isRetryMode) retrySubmitted else state.isAnswerSubmitted
     val activeFinished = if (isRetryMode) retryFinished else state.isQuizFinished
 
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val mriHaptics = com.example.util.rememberMriHaptics()
     var hasInitializedDefaultModuleFilter by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(Unit) {
         if (!hasInitializedDefaultModuleFilter) {
@@ -240,7 +240,7 @@ fun QuizScreen(
                 // Tombol Statistik Ringkas
                 Surface(
                     onClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        mriHaptics.lightToggle()
                         showStatsDialog = !showStatsDialog
                     },
                     modifier = Modifier.defaultMinSize(minWidth = 48.dp, minHeight = 40.dp),
@@ -295,7 +295,7 @@ fun QuizScreen(
 
             Surface(
                 onClick = {
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                    mriHaptics.lightToggle()
                     isFilterExpanded = !isFilterExpanded
                 },
                 modifier = Modifier.defaultMinSize(minHeight = 38.dp),
@@ -397,7 +397,7 @@ fun QuizScreen(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = {
-                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    mriHaptics.lightToggle()
                                     viewModel.setQuizModuleFilter(modId)
                                 },
                                 modifier = Modifier
@@ -453,7 +453,7 @@ fun QuizScreen(
                             FilterChip(
                                 selected = isSelected,
                                 onClick = {
-                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    mriHaptics.lightToggle()
                                     viewModel.setQuizLevelFilter(lvl)
                                 },
                                 modifier = Modifier
@@ -666,7 +666,7 @@ fun QuizScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            mriHaptics.lightToggle()
                             nanoInteractionMode = (nanoInteractionMode + 1) % 5
                             showPreSubmitHint = !showPreSubmitHint
                             nanoTapBounceCount++
@@ -787,7 +787,7 @@ fun QuizScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                            mriHaptics.lightToggle()
                                             nanoInteractionMode = if (selectedMode) 0 else modeId
                                             nanoTapBounceCount++
                                         },
@@ -813,7 +813,7 @@ fun QuizScreen(
                                     modifier = Modifier
                                         .clip(RoundedCornerShape(8.dp))
                                         .clickable {
-                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                            mriHaptics.lightToggle()
                                             viewModel.setQuizModuleFilter("SEMUA")
                                             isFilterExpanded = true
                                         }
@@ -912,7 +912,7 @@ fun QuizScreen(
                                         .fillMaxWidth()
                                         .padding(bottom = if (isSelected) 1.dp else 3.dp)
                                         .clickable(enabled = !isSubmitted) {
-                                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                            mriHaptics.lightToggle()
                                             if (isRetryMode) {
                                                 retrySelected = index
                                             } else {
@@ -999,7 +999,7 @@ fun QuizScreen(
                 ) {
                     OutlinedButton(
                         onClick = {
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                            mriHaptics.lightToggle()
                             if (isRetryMode) {
                                 if (retryIndex > 0) {
                                     retryIndex--
@@ -1026,13 +1026,14 @@ fun QuizScreen(
                     if (!activeSubmitted) {
                         Button(
                             onClick = {
-                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                                 if (isRetryMode) {
                                     val isCorrect = retrySelected == currentQuiz.correctIndex
+                                    if (isCorrect) mriHaptics.mediumAction() else mriHaptics.warningBuzz()
                                     retryAnswers = retryAnswers + (currentQuiz.id to isCorrect)
                                     retrySubmitted = true
                                 } else {
                                     val isCorrect = state.selectedOptionIndex == currentQuiz.correctIndex
+                                    if (isCorrect) mriHaptics.mediumAction() else mriHaptics.warningBuzz()
                                     QuizSessionSnapshotHolder.record(currentQuiz.id, isCorrect)
                                     viewModel.submitQuizAnswer()
                                 }
@@ -1050,7 +1051,7 @@ fun QuizScreen(
                     } else {
                         Button(
                             onClick = {
-                                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                mriHaptics.lightToggle()
                                 if (isRetryMode) {
                                     if (retryIndex < activeQuizzes.lastIndex) {
                                         retryIndex++
@@ -1192,6 +1193,10 @@ fun QuizFinishedView(
     total: Int,
     onRestart: () -> Unit
 ) {
+    val haptics = com.example.util.rememberMriHaptics()
+    LaunchedEffect(score, total) {
+        haptics.completionBuzz()
+    }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(24.dp),

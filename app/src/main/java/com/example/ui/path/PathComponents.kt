@@ -182,7 +182,7 @@ fun PathNodeButton(
     semanticLabel: String = label
 ) {
     val colorScheme = MaterialTheme.colorScheme
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptics = com.example.util.rememberMriHaptics()
     val reduceMotion = rememberReduceMotion()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -371,7 +371,7 @@ fun PathNodeButton(
                     indication = null,
                     role = Role.Button,
                     onClick = {
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                        haptics.lightToggle()
                         onClick()
                     }
                 )

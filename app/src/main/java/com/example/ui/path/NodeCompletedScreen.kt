@@ -96,12 +96,12 @@ fun NodeCompletedScreen(
     onContinueNext: () -> Unit,
     onReturnToPath: () -> Unit
 ) {
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptics = com.example.util.rememberMriHaptics()
     val reduceMotion = rememberReduceMotion()
     var revealed by remember(completedNode.code) { mutableStateOf(reduceMotion) }
 
     LaunchedEffect(completedNode.code, reduceMotion) {
-        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+        haptics.completionBuzz()
         revealed = true
     }
 

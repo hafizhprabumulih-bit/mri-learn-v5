@@ -9,6 +9,13 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -171,7 +178,10 @@ class MainActivity : ComponentActivity() {
                     contentWindowInsets = WindowInsets.statusBars,
                     bottomBar = {
                         // Tampilkan bottom navigation kecuali saat loading atau Focus Reader aktif
-                        if (!state.isLoading && !PathNavigationHints.isFocusReaderActive) {
+                        AnimatedVisibility(
+                            visible = !state.isLoading && !PathNavigationHints.isFocusReaderActive,
+                            enter = fadeIn(animationSpec = tween(durationMillis = 380))
+                        ) {
                             val savedCount = state.bookmarkedNodeCodes.size + state.bookmarkedGlossaryTerms.size
                             MriBottomNavigationBar(
                                 currentTab = state.currentTab,
@@ -200,33 +210,47 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = contentModifier
                     ) {
-                        if (state.isLoading) {
+                        AnimatedVisibility(
+                            visible = !state.isLoading,
+                            enter = fadeIn(animationSpec = tween(420)) +
+                                scaleIn(initialScale = 0.94f, animationSpec = tween(420, easing = FastOutSlowInEasing))
+                        ) {
+                            if (PathNavigationHints.isArcadeOpen) {
+                                ArcadeHubScreen(
+                                    characterCustomization = state.characterCustomization,
+                                    onBackToHome = { PathNavigationHints.isArcadeOpen = false }
+                                )
+                            } else if (state.selectedModule != null) {
+                                com.example.ui.path.ModuleRouteHost(
+                                    module = state.selectedModule!!,
+                                    state = state,
+                                    viewModel = viewModel
+                                )
+                            } else {
+                                when (state.currentTab) {
+                                    MainTab.BERANDA -> HomeScreen(state = state, viewModel = viewModel)
+                                    MainTab.ANIMASI -> LearningAnimationScreen(state = state, viewModel = viewModel)
+                                    MainTab.SIMULASI -> SimulatorsScreen(state = state, viewModel = viewModel)
+                                    MainTab.TERSIMPAN -> SavedScreen(state = state, viewModel = viewModel)
+                                    MainTab.CATATAN -> NotesScreen(state = state, viewModel = viewModel)
+                                    MainTab.GLOSARIUM -> GlossaryScreen(state = state, viewModel = viewModel)
+                                    MainTab.KUIS -> QuizScreen(state = state, viewModel = viewModel)
+                                    MainTab.KARAKTER -> CharacterRoomScreen(state = state, viewModel = viewModel)
+                                }
+                            }
+                        }
+
+                        AnimatedVisibility(
+                            visible = state.isLoading,
+                            exit = scaleOut(
+                                targetScale = 0.62f,
+                                animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 420))
+                        ) {
                             LoadingScreen(
                                 customMessage = state.loadingMessage,
                                 onFinished = { viewModel.finishLoading() }
                             )
-                        } else if (PathNavigationHints.isArcadeOpen) {
-                            ArcadeHubScreen(
-                                characterCustomization = state.characterCustomization,
-                                onBackToHome = { PathNavigationHints.isArcadeOpen = false }
-                            )
-                        } else if (state.selectedModule != null) {
-                            com.example.ui.path.ModuleRouteHost(
-                                module = state.selectedModule!!,
-                                state = state,
-                                viewModel = viewModel
-                            )
-                        } else {
-                            when (state.currentTab) {
-                                MainTab.BERANDA -> HomeScreen(state = state, viewModel = viewModel)
-                                MainTab.ANIMASI -> LearningAnimationScreen(state = state, viewModel = viewModel)
-                                MainTab.SIMULASI -> SimulatorsScreen(state = state, viewModel = viewModel)
-                                MainTab.TERSIMPAN -> SavedScreen(state = state, viewModel = viewModel)
-                                MainTab.CATATAN -> NotesScreen(state = state, viewModel = viewModel)
-                                MainTab.GLOSARIUM -> GlossaryScreen(state = state, viewModel = viewModel)
-                                MainTab.KUIS -> QuizScreen(state = state, viewModel = viewModel)
-                                MainTab.KARAKTER -> CharacterRoomScreen(state = state, viewModel = viewModel)
-                            }
                         }
 
                         // Modal Info & Disclaimer
