@@ -1,6 +1,7 @@
 package com.example.util
 
 import com.example.data.CharacterCatalog
+import com.example.data.LegacyNodeCodes
 import com.example.data.MriModule
 import com.example.data.MriQuizQuestion
 import com.example.data.UnlockRequirement
@@ -10,6 +11,43 @@ import com.example.data.local.QuizAttemptEntity
  * Helper murni untuk mendeteksi modul baru tuntas dan menyusun data layar Modul Tuntas.
  */
 object ModuleCompletionCelebration {
+
+    fun readProgressOf(
+        module: MriModule,
+        completedCodes: Set<String>,
+        skippedCodes: Set<String>
+    ): ModuleProgress {
+        val readCodes = LegacyNodeCodes.normalizeAll(completedCodes) - LegacyNodeCodes.normalizeAll(skippedCodes)
+        val done = module.nodes.count { LegacyNodeCodes.normalize(it.code) in readCodes }
+        return ModuleProgress(
+            moduleId = module.id,
+            done = done,
+            total = module.nodes.size
+        )
+    }
+
+    fun shouldShowForReadCompletion(
+        moduleId: String,
+        module: MriModule,
+        completedBefore: Set<String>,
+        skippedBefore: Set<String>,
+        justCompletedCode: String,
+        alreadyCelebratedModuleIds: Set<String>
+    ): Boolean {
+        val normCode = LegacyNodeCodes.normalize(justCompletedCode)
+        val before = readProgressOf(module, completedBefore, skippedBefore)
+        val after = readProgressOf(
+            module = module,
+            completedCodes = completedBefore + normCode,
+            skippedCodes = LegacyNodeCodes.normalizeAll(skippedBefore) - normCode
+        )
+        return shouldShow(
+            moduleId = moduleId,
+            before = before,
+            after = after,
+            alreadyCelebratedModuleIds = alreadyCelebratedModuleIds
+        )
+    }
 
     fun moduleJustCompleted(
         before: ModuleProgress,

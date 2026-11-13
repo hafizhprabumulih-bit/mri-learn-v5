@@ -52,8 +52,12 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -159,6 +163,10 @@ class MainActivity : ComponentActivity() {
             BelajarMriTheme {
                 val state by viewModel.uiState.collectAsState()
                 val pathHolder = rememberModulePathStateHolder()
+                var isArcadeOpen by rememberSaveable { mutableStateOf(PathNavigationHints.isArcadeOpen) }
+                LaunchedEffect(isArcadeOpen) {
+                    PathNavigationHints.isArcadeOpen = isArcadeOpen
+                }
 
                 // P1: Saat loading, Back mempersingkat loading, bukan menutup aplikasi.
                 androidx.activity.compose.BackHandler(enabled = state.isLoading) {
@@ -166,7 +174,7 @@ class MainActivity : ComponentActivity() {
                 }
 
                 androidx.activity.compose.BackHandler(
-                    enabled = !state.isLoading && !PathNavigationHints.isArcadeOpen && (state.canNavigateBack || state.selectedModule != null || state.currentTab != MainTab.BERANDA)
+                    enabled = !state.isLoading && !isArcadeOpen && (state.canNavigateBack || state.selectedModule != null || state.currentTab != MainTab.BERANDA)
                 ) {
                     viewModel.navigateBack()
                 }
@@ -186,13 +194,15 @@ class MainActivity : ComponentActivity() {
                             MriBottomNavigationBar(
                                 currentTab = state.currentTab,
                                 isModuleDetailOpen = state.selectedModule != null,
-                                isArcadeOpen = PathNavigationHints.isArcadeOpen,
+                                isArcadeOpen = isArcadeOpen,
                                 savedCount = savedCount,
                                 onTabSelected = { tab ->
+                                    isArcadeOpen = false
                                     PathNavigationHints.isArcadeOpen = false
                                     viewModel.selectTab(tab)
                                 },
                                 onArcadeSelected = {
+                                    isArcadeOpen = true
                                     PathNavigationHints.isArcadeOpen = true
                                 }
                             )
@@ -215,10 +225,13 @@ class MainActivity : ComponentActivity() {
                             enter = fadeIn(animationSpec = tween(420)) +
                                 scaleIn(initialScale = 0.94f, animationSpec = tween(420, easing = FastOutSlowInEasing))
                         ) {
-                            if (PathNavigationHints.isArcadeOpen) {
+                            if (isArcadeOpen) {
                                 ArcadeHubScreen(
                                     characterCustomization = state.characterCustomization,
-                                    onBackToHome = { PathNavigationHints.isArcadeOpen = false }
+                                    onBackToHome = {
+                                        isArcadeOpen = false
+                                        PathNavigationHints.isArcadeOpen = false
+                                    }
                                 )
                             } else if (state.selectedModule != null) {
                                 com.example.ui.path.ModuleRouteHost(

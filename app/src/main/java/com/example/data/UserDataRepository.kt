@@ -515,7 +515,7 @@ class UserDataRepository(
         val zone = ZoneId.systemDefault()
         val startMillis = parsedDate.atStartOfDay(zone).toInstant().toEpochMilli()
         val endMillis = parsedDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-        val countToday = database.nodeProgressDao().getCountCompletedBetween(startMillis, endMillis)
+        val countToday = database.nodeProgressDao().getCountReadBetween(startMillis, endMillis)
         val resolvedCount = if (countToday > 0 || lastNodeCode != null) {
             countToday
         } else {
@@ -616,14 +616,20 @@ class UserDataRepository(
         return changed
     }
 
+    suspend fun getSkippedNodeCodes(): Set<String> =
+        LegacyNodeCodes.normalizeAll(
+            database.nodeProgressDao().getNodeCodesBySource("SKIP_TEST").toSet()
+        )
+
     /**
      * Menandai sekumpulan simpul yang dilewati lewat fitur "Lompat dengan tes singkat"
      * (`source = "SKIP_TEST"`). Simpul yang sudah selesai (`READ` / sudah ada di `node_progress`)
-     * tidak ditimpa.
+     * tidak ditimpa, dan lompatan 0-XP tidak mencatat hari belajar (`study_days`) agar streak
+     * tetap hanya dihitung dari belajar/baca/kuis nyata.
      */
     suspend fun markNodesSkippedByTest(
         rawNodeCodes: List<String>,
-        dateIso: String = LocalDate.now().toString()
+        @Suppress("UNUSED_PARAMETER") dateIso: String = LocalDate.now().toString()
     ): Int {
         val normalizedDistinct = rawNodeCodes
             .map { LegacyNodeCodes.normalize(it.trim()) }
@@ -649,12 +655,6 @@ class UserDataRepository(
             }
             if (toInsert.isNotEmpty()) {
                 database.nodeProgressDao().insertAll(toInsert)
-                val lastInserted = toInsert.last()
-                upsertStudyDayInternal(
-                    dateIso = dateIso,
-                    lastNodeCode = lastInserted.nodeCode,
-                    lastModuleId = lastInserted.moduleId
-                )
             }
             toInsert.size
         }
@@ -691,14 +691,14 @@ class UserDataRepository(
                         val parsedDate = runCatching { LocalDate.parse(targetDateIso) }.getOrElse { LocalDate.now() }
                         val startMillis = parsedDate.atStartOfDay(zone).toInstant().toEpochMilli()
                         val endMillis = parsedDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-                        val countOnDay = database.nodeProgressDao().getCountCompletedBetween(startMillis, endMillis)
+                        val countOnDay = database.nodeProgressDao().getCountReadBetween(startMillis, endMillis)
                         val quizCountOnDay = database.quizAttemptDao().getCountAnsweredBetween(startMillis, endMillis)
                         val hasFlashcardActivity = existingDay.hasFlashcardActivity || existingDay.lastNodeCode == "FLASHCARD_REVIEW"
                         if (countOnDay == 0 && quizCountOnDay == 0 && !hasFlashcardActivity) {
                             database.studyDayDao().deleteByDate(targetDateIso)
                         } else {
                             val latestRemainingCode = database.nodeProgressDao()
-                                .getLatestCompletedNodeCodeBetween(startMillis, endMillis)
+                                .getLatestReadNodeCodeBetween(startMillis, endMillis)
                                 ?: if (existingDay.lastNodeCode == "FLASHCARD_REVIEW") "FLASHCARD_REVIEW" else null
                             val updatedLastNodeCode = if (existingDay.lastNodeCode == normalizedCode || existingDay.lastNodeCode == "FLASHCARD_REVIEW") {
                                 latestRemainingCode

@@ -842,7 +842,7 @@ private fun FocusNodeReader(
                         ) {
                             TextButton(
                                 onClick = { viewModel.toggleNodeCompletion(node.code) },
-                                modifier = Modifier.defaultMinSize(minHeight = 36.dp)
+                                modifier = Modifier.defaultMinSize(minHeight = 48.dp)
                             ) {
                                 Text(
                                     text = "Batalkan selesai",

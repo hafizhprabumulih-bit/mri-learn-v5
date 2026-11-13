@@ -13,6 +13,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -88,5 +89,23 @@ class SkipTestAndProgressSourceTest {
         )
         assertEquals(NodeStatus.DONE, pathAfterUpgrade.nodes[1].status)
         assertEquals(NodeStatus.SKIPPED, pathAfterUpgrade.nodes[2].status)
+    }
+
+    @Test
+    fun skipTestDoesNotCreateOrInflateStudyDayStreakCount() = runBlocking {
+        val m01 = MriRepository.modules.first { it.id == "M01" }
+        val today = java.time.LocalDate.now().toString()
+        val skippedSlice = listOf(m01.nodes[0].code, m01.nodes[1].code)
+
+        // Lompat dengan tes singkat tanpa membaca simpul tidak boleh membuat entri study_days
+        val inserted = repository.markNodesSkippedByTest(skippedSlice, dateIso = today)
+        assertEquals(2, inserted)
+        assertNull(db.studyDayDao().getByDate(today))
+
+        // Membaca 1 simpul baru -> study_days hanya menghitung 1 simpul READ (bukan 3)
+        repository.markNodeRead(m01.nodes[2].code, dateIso = today)
+        val day = db.studyDayDao().getByDate(today)
+        assertEquals(1, day?.nodesCompletedCount)
+        assertEquals(m01.nodes[2].code, day?.lastNodeCode)
     }
 }

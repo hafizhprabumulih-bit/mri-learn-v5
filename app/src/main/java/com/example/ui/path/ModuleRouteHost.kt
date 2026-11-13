@@ -9,10 +9,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import com.example.data.LegacyNodeCodes
 import com.example.data.MriModule
@@ -40,7 +38,6 @@ fun ModuleRouteHost(
 ) {
     val pathHolder = rememberModulePathStateHolder()
     val skippedCodes = rememberSkippedNodeCodes(pathHolder)
-    val scope = rememberCoroutineScope()
 
     var inReaderMode by rememberSaveable(module.id) { mutableStateOf(false) }
     var focusedNodeCode by rememberSaveable(module.id) { mutableStateOf<String?>(null) }
@@ -55,10 +52,17 @@ fun ModuleRouteHost(
 
     LaunchedEffect(state.modulesList, state.isResumeRestored) {
         if (state.isResumeRestored && state.modulesList.isNotEmpty()) {
-            val alreadyDoneIds = PathStateResolver
-                .resolveAll(state.modulesList, state.completedNodeCodes)
-                .filter { it.progress.total > 0 && it.progress.done >= it.progress.total }
-                .map { it.module.id }
+            val currentSkipped = pathHolder.getSkippedNodeCodes()
+            val alreadyDoneIds = state.modulesList
+                .filter { mod ->
+                    val readProgress = ModuleCompletionCelebration.readProgressOf(
+                        module = mod,
+                        completedCodes = state.completedNodeCodes,
+                        skippedCodes = currentSkipped
+                    )
+                    readProgress.total > 0 && readProgress.done >= readProgress.total
+                }
+                .map { it.id }
                 .toSet()
             pathHolder.ensureCelebratedModulesInitialized(alreadyDoneIds)
         }
@@ -152,35 +156,23 @@ fun ModuleRouteHost(
                             skippedCodesBefore = skippedBefore
                         )
                         celebrationNodeCode = nodeObj.code
-                        val beforeProgress = PathStateResolver.resolveModule(
-                            module = module,
-                            allModules = state.modulesList,
-                            completedCodes = completedBefore,
-                            skippedCodes = skippedBefore
-                        ).progress
-                        val afterProgress = PathStateResolver.resolveModule(
-                            module = module,
-                            allModules = state.modulesList,
-                            completedCodes = completedBefore + normCode,
-                            skippedCodes = skippedBefore
-                        ).progress
-                        if (ModuleCompletionCelebration.shouldShow(
+                        if (ModuleCompletionCelebration.shouldShowForReadCompletion(
                                 moduleId = module.id,
-                                before = beforeProgress,
-                                after = afterProgress,
+                                module = module,
+                                completedBefore = completedBefore,
+                                skippedBefore = skippedBefore,
+                                justCompletedCode = normCode,
                                 alreadyCelebratedModuleIds = celebratedModuleIds
                             )
                         ) {
                             pendingModuleCelebration = true
-                            scope.launch { pathHolder.markModuleCelebrated(module.id) }
+                            pathHolder.markModuleCelebratedAsync(module.id)
                         }
                     }
                 }
             },
             onMarkSkippedNodeAsRead = { code ->
-                scope.launch {
-                    pathHolder.markNodeRead(code)
-                }
+                pathHolder.markNodeReadAsync(code)
             }
         )
     } else {
@@ -308,8 +300,8 @@ fun ModuleRouteHost(
     }
 
     if (showModuleCompleted) {
-        val currentProgress = remember(module, state.modulesList, state.completedNodeCodes) {
-            PathStateResolver.resolveModule(module, state.modulesList, state.completedNodeCodes).progress
+        val currentProgress = remember(module, state.completedNodeCodes, skippedCodes) {
+            ModuleCompletionCelebration.readProgressOf(module, state.completedNodeCodes, skippedCodes)
         }
         val quizMastery = remember(module.id, state.quizzesList, state.quizAttempts) {
             ModuleCompletionCelebration.moduleQuizMasteryPercent(

@@ -44,8 +44,14 @@ interface NodeProgressDao {
     @Query("SELECT COUNT(*) FROM node_progress WHERE completedAt >= :startOfDayMillis AND completedAt < :endOfDayMillis")
     suspend fun getCountCompletedBetween(startOfDayMillis: Long, endOfDayMillis: Long): Int
 
+    @Query("SELECT COUNT(*) FROM node_progress WHERE source = 'READ' AND completedAt >= :startOfDayMillis AND completedAt < :endOfDayMillis")
+    suspend fun getCountReadBetween(startOfDayMillis: Long, endOfDayMillis: Long): Int
+
     @Query("SELECT nodeCode FROM node_progress WHERE completedAt >= :startOfDayMillis AND completedAt < :endOfDayMillis ORDER BY completedAt DESC LIMIT 1")
     suspend fun getLatestCompletedNodeCodeBetween(startOfDayMillis: Long, endOfDayMillis: Long): String?
+
+    @Query("SELECT nodeCode FROM node_progress WHERE source = 'READ' AND completedAt >= :startOfDayMillis AND completedAt < :endOfDayMillis ORDER BY completedAt DESC LIMIT 1")
+    suspend fun getLatestReadNodeCodeBetween(startOfDayMillis: Long, endOfDayMillis: Long): String?
 }
 
 @Dao

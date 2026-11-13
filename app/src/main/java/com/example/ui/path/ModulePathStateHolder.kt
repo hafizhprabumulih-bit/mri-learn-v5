@@ -20,6 +20,7 @@ import com.example.util.PathNodeState
 import com.example.util.PathStateResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -97,7 +98,8 @@ data class IndexedPathNode(
  */
 @Stable
 class ModulePathStateHolder(context: Context) {
-    val repository: UserDataRepository = UserDataRepository(context.applicationContext)
+    private val appContext: Context = context.applicationContext
+    val repository: UserDataRepository = UserDataRepository(appContext)
     private val persistenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     val skippedCodesFlow: Flow<Set<String>> =
@@ -169,9 +171,16 @@ class ModulePathStateHolder(context: Context) {
         repository.markModulesCelebrated(setOf(moduleId))
     }
 
+    fun markModuleCelebratedAsync(moduleId: String): Job =
+        persistenceScope.launch {
+            repository.markModulesCelebrated(setOf(moduleId))
+        }
+
     suspend fun ensureCelebratedModulesInitialized(alreadyCompletedModuleIds: Set<String>) {
         repository.ensureCelebratedModulesInitialized(alreadyCompletedModuleIds)
     }
+
+    suspend fun getSkippedNodeCodes(): Set<String> = repository.getSkippedNodeCodes()
 
     fun resolveModulePath(
         module: MriModule,
@@ -193,9 +202,19 @@ class ModulePathStateHolder(context: Context) {
         return repository.markNodeRead(nodeCode)
     }
 
+    fun markNodeReadAsync(nodeCode: String): Job =
+        persistenceScope.launch {
+            repository.markNodeRead(nodeCode)
+        }
+
     suspend fun markNodesSkippedByTest(nodeCodes: List<String>): Int {
         return repository.markNodesSkippedByTest(nodeCodes)
     }
+
+    fun markNodesSkippedByTestAsync(nodeCodes: List<String>): Job =
+        persistenceScope.launch {
+            repository.markNodesSkippedByTest(nodeCodes)
+        }
 
     fun buildSections(
         pathState: ModulePathState,
@@ -254,6 +273,17 @@ class ModulePathStateHolder(context: Context) {
         const val SOURCE_READ = "READ"
         const val SOURCE_SKIP_TEST = "SKIP_TEST"
 
+        @Volatile
+        private var cachedInstance: ModulePathStateHolder? = null
+
+        fun getInstance(context: Context): ModulePathStateHolder {
+            val appCtx = context.applicationContext
+            return cachedInstance?.takeIf { it.appContext === appCtx } ?: synchronized(this) {
+                cachedInstance?.takeIf { it.appContext === appCtx }
+                    ?: ModulePathStateHolder(appCtx).also { cachedInstance = it }
+            }
+        }
+
         fun resolveNodeKind(node: MriNode): NodeKind {
             val codeUpper = node.code.uppercase()
             val titleLower = node.title.lowercase()
@@ -287,8 +317,9 @@ class ModulePathStateHolder(context: Context) {
 @Composable
 fun rememberModulePathStateHolder(): ModulePathStateHolder {
     val context = LocalContext.current
-    return remember(context.applicationContext) {
-        ModulePathStateHolder(context.applicationContext)
+    val appCtx = context.applicationContext
+    return remember(appCtx) {
+        ModulePathStateHolder.getInstance(appCtx)
     }
 }
 

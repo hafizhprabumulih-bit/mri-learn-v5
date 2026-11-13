@@ -676,9 +676,7 @@ fun ModulePathScreen(
         SkipTestDialog(
             plan = currentSkipPlan,
             onTestPassed = { codes ->
-                scope.launch {
-                    pathHolder.markNodesSkippedByTest(codes)
-                }
+                pathHolder.markNodesSkippedByTestAsync(codes)
             },
             onOpenTargetNode = {
                 val targetCode = currentSkipPlan.targetNodeCode
