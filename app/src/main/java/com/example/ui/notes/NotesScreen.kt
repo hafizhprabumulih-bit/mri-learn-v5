@@ -1,8 +1,5 @@
 package com.example.ui.notes
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -32,6 +29,7 @@ import com.example.ui.components.rememberRestorableScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
@@ -39,6 +37,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.Print
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -89,10 +88,10 @@ import com.example.ui.theme.RoseDanger
 import com.example.ui.theme.TextMuted
 import com.example.ui.theme.TextPrimary
 import com.example.ui.theme.TextSecondary
+import com.example.util.NotesPdfExporter
 import com.example.util.rememberMriHaptics
 import com.example.viewmodel.MriUiState
 import com.example.viewmodel.MriViewModel
-import java.io.File
 import java.time.LocalDate
 
 @Composable
@@ -107,23 +106,22 @@ fun NotesScreen(
     var showExportDialog by rememberSaveable { mutableStateOf(false) }
     var exportStatusMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val createJsonDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json")
+    val createPdfDocumentLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/pdf")
     ) { uri ->
         if (uri != null) {
             runCatching {
-                val jsonPayload = viewModel.exportNotesToJson()
                 val stream = context.contentResolver.openOutputStream(uri)
-                    ?: throw java.io.IOException("Aliran penyimpanan tujuan tidak tersedia.")
+                    ?: throw java.io.IOException("Aliran penyimpanan PDF tujuan tidak tersedia.")
                 stream.use { outputStream ->
-                    outputStream.write(jsonPayload.toByteArray(Charsets.UTF_8))
+                    NotesPdfExporter.writeNotesPdf(state.notesList, state.userName, outputStream)
                 }
-                exportStatusMessage = "Catatan berhasil diekspor ke file JSON pilihan Anda."
+                exportStatusMessage = "Catatan berhasil disimpan sebagai file PDF siap cetak."
             }.onFailure { err ->
-                exportStatusMessage = "Gagal mengekspor file JSON ke lokasi pilihan (${err.localizedMessage ?: "akses ditolak"})."
+                exportStatusMessage = "Gagal menyimpan file PDF (${err.localizedMessage ?: "akses ditolak"})."
             }
         } else {
-            exportStatusMessage = "Pemilihan lokasi ekspor dibatalkan."
+            exportStatusMessage = "Pemilihan lokasi simpan PDF dibatalkan."
         }
     }
 
@@ -135,7 +133,7 @@ fun NotesScreen(
         ) {
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 1. PINNED TOP HEADER: Judul + Tombol Export Catatan (JSON)
+            // 1. PINNED TOP HEADER: Judul + Tombol Cetak / Export Catatan (PDF)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -149,7 +147,7 @@ fun NotesScreen(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "${state.notesList.size} catatan tersimpan • Aman & portabel",
+                        text = "${state.notesList.size} catatan tersimpan • Siap cetak PDF",
                         fontSize = 11.sp,
                         color = TextSecondary
                     )
@@ -172,14 +170,14 @@ fun NotesScreen(
                     border = BorderStroke(1.dp, CyanPrimary)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FileDownload,
-                        contentDescription = "Export Catatan ke JSON",
+                        imageVector = Icons.Default.Print,
+                        contentDescription = "Cetak / Export Catatan ke PDF",
                         tint = CyanBright,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Export Catatan",
+                        text = "Cetak PDF",
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
                         maxLines = 1,
@@ -438,41 +436,40 @@ fun NotesScreen(
             )
         }
 
-        // Dialog Export Catatan ke Format JSON
+        // Dialog Cetak & Export Catatan ke Format PDF
         if (showExportDialog) {
-            val jsonContent = remember(state.notesList, state.userName) {
-                viewModel.exportNotesToJson()
+            val pdfPreviewText = remember(state.notesList, state.userName) {
+                NotesPdfExporter.buildPlainPreviewText(state.notesList, state.userName)
             }
-            ExportNotesJsonDialog(
+            ExportNotesPdfDialog(
                 notesCount = state.notesList.size,
-                jsonContent = jsonContent,
+                pdfPreviewText = pdfPreviewText,
                 statusMessage = exportStatusMessage,
-                onDownloadJsonFile = {
-                    val fileName = "catatan_belajar_mri_${LocalDate.now()}.json"
-                    runCatching {
-                        val exportDir = context.getExternalFilesDir(null) ?: context.filesDir
-                        val targetFile = File(exportDir, fileName)
-                        targetFile.writeText(jsonContent, Charsets.UTF_8)
-                        exportStatusMessage = "File JSON ($fileName) siap diunduh (${state.notesList.size} catatan)."
-                    }
-                    runCatching {
-                        createJsonDocumentLauncher.launch(fileName)
-                    }
-                },
-                onCopyJson = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
-                    clipboard?.setPrimaryClip(ClipData.newPlainText("Catatan Belajar MRI JSON", jsonContent))
-                    exportStatusMessage = "Seluruh catatan dalam format JSON berhasil disalin ke clipboard!"
-                },
-                onShareJson = {
-                    runCatching {
-                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                            type = "application/json"
-                            putExtra(Intent.EXTRA_SUBJECT, "Cadangan Catatan Belajar MRI (JSON)")
-                            putExtra(Intent.EXTRA_TEXT, jsonContent)
+                onPrintPdf = {
+                    NotesPdfExporter.printNotesPdf(context, state.notesList, state.userName)
+                        .onSuccess {
+                            exportStatusMessage = "Dialog cetak / simpan PDF sistem dibuka."
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "Export / Bagikan Catatan JSON"))
+                        .onFailure { err ->
+                            exportStatusMessage = "Gagal membuka cetak PDF (${err.localizedMessage ?: "layanan tidak tersedia"})."
+                        }
+                },
+                onSavePdfFile = {
+                    val fileName = "catatan_belajar_mri_${LocalDate.now()}.pdf"
+                    runCatching {
+                        createPdfDocumentLauncher.launch(fileName)
+                    }.onFailure { err ->
+                        exportStatusMessage = "Gagal memilih lokasi PDF (${err.localizedMessage ?: "tidak tersedia"})."
                     }
+                },
+                onSharePdf = {
+                    NotesPdfExporter.shareNotesPdf(context, state.notesList, state.userName)
+                        .onSuccess {
+                            exportStatusMessage = "File PDF siap dibagikan."
+                        }
+                        .onFailure { err ->
+                            exportStatusMessage = "Gagal membagikan PDF (${err.localizedMessage ?: "tidak tersedia"})."
+                        }
                 },
                 onDismiss = { showExportDialog = false }
             )
@@ -763,13 +760,13 @@ fun NoteEditorDialog(
 }
 
 @Composable
-fun ExportNotesJsonDialog(
+fun ExportNotesPdfDialog(
     notesCount: Int,
-    jsonContent: String,
+    pdfPreviewText: String,
     statusMessage: String?,
-    onDownloadJsonFile: () -> Unit,
-    onCopyJson: () -> Unit,
-    onShareJson: () -> Unit,
+    onPrintPdf: () -> Unit,
+    onSavePdfFile: () -> Unit,
+    onSharePdf: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(onDismissRequest = onDismiss) {
@@ -784,18 +781,30 @@ fun ExportNotesJsonDialog(
             Column(modifier = Modifier.padding(18.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .size(48.dp)
+                            .testTag("back_export_pdf_button")
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Kembali dari opsi cetak PDF",
+                            tint = TextPrimary
+                        )
+                    }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Export Catatan (JSON)",
+                            text = "Cetak Catatan (PDF)",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary
                         )
                         Text(
-                            text = "Portabilitas penuh • $notesCount catatan siap diunduh",
+                            text = "Dokumen A4 siap cetak • $notesCount catatan",
                             fontSize = 11.sp,
                             color = CyanBright
                         )
@@ -806,7 +815,7 @@ fun ExportNotesJsonDialog(
                         border = BorderStroke(1.dp, AmberAccent)
                     ) {
                         Text(
-                            text = ".JSON",
+                            text = ".PDF",
                             fontSize = 10.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = FontFamily.Monospace,
@@ -819,7 +828,7 @@ fun ExportNotesJsonDialog(
                 Spacer(modifier = Modifier.height(10.dp))
 
                 Text(
-                    text = "Unduh seluruh catatan belajar MRI Anda dalam format JSON standar agar tetap aman, mudah dicadangkan, dan dapat dipindahkan antar perangkat.",
+                    text = "Cetak langsung ke printer/Save as PDF, simpan file .pdf ke penyimpanan perangkat, atau bagikan dokumen PDF catatan belajar MRI Anda.",
                     fontSize = 11.sp,
                     color = TextSecondary,
                     lineHeight = 16.sp
@@ -827,12 +836,12 @@ fun ExportNotesJsonDialog(
 
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // Pratinjau Struktur JSON
+                // Pratinjau Tata Letak Dokumen PDF
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(155.dp)
-                        .testTag("export_json_preview"),
+                        .height(160.dp)
+                        .testTag("export_pdf_preview"),
                     shape = RoundedCornerShape(12.dp),
                     color = DeepObsidian,
                     border = BorderStroke(1.dp, CardSlateBorder)
@@ -844,11 +853,10 @@ fun ExportNotesJsonDialog(
                             .verticalScroll(rememberScrollState())
                     ) {
                         Text(
-                            text = jsonContent,
-                            fontSize = 10.sp,
-                            fontFamily = FontFamily.Monospace,
-                            color = CyanBright,
-                            lineHeight = 14.sp
+                            text = pdfPreviewText,
+                            fontSize = 10.5.sp,
+                            color = TextPrimary,
+                            lineHeight = 15.sp
                         )
                     }
                 }
@@ -884,12 +892,13 @@ fun ExportNotesJsonDialog(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Tombol Utama: Unduh File JSON
+                // Tombol Utama: Cetak / Print PDF
                 Button(
-                    onClick = onDownloadJsonFile,
+                    onClick = onPrintPdf,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("download_json_file_button"),
+                        .defaultMinSize(minHeight = 48.dp)
+                        .testTag("print_pdf_button"),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = CyanPrimary,
@@ -897,13 +906,13 @@ fun ExportNotesJsonDialog(
                     )
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FileDownload,
+                        imageVector = Icons.Default.Print,
                         contentDescription = null,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "Unduh File JSON (.json)",
+                        text = "Cetak / Print PDF",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -911,16 +920,17 @@ fun ExportNotesJsonDialog(
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Baris Aksi Sekunder: Salin JSON & Bagikan
+                // Baris Aksi Sekunder: Simpan .pdf & Bagikan PDF
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     OutlinedButton(
-                        onClick = onCopyJson,
+                        onClick = onSavePdfFile,
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("copy_json_button"),
+                            .defaultMinSize(minHeight = 48.dp)
+                            .testTag("download_pdf_file_button"),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -930,14 +940,14 @@ fun ExportNotesJsonDialog(
                         border = BorderStroke(1.dp, CardSlateBorder)
                     ) {
                         Icon(
-                            imageVector = Icons.Default.ContentCopy,
+                            imageVector = Icons.Default.FileDownload,
                             contentDescription = null,
                             tint = CyanBright,
                             modifier = Modifier.size(14.dp)
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Salin JSON",
+                            text = "Simpan PDF",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -946,10 +956,11 @@ fun ExportNotesJsonDialog(
                     }
 
                     OutlinedButton(
-                        onClick = onShareJson,
+                        onClick = onSharePdf,
                         modifier = Modifier
                             .weight(1f)
-                            .testTag("share_json_button"),
+                            .defaultMinSize(minHeight = 48.dp)
+                            .testTag("share_pdf_button"),
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
@@ -966,7 +977,7 @@ fun ExportNotesJsonDialog(
                         )
                         Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "Bagikan",
+                            text = "Bagikan PDF",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.SemiBold,
                             maxLines = 1,
@@ -981,12 +992,19 @@ fun ExportNotesJsonDialog(
                     onClick = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
                         .testTag("close_export_dialog_button"),
                     shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
                     border = BorderStroke(1.dp, CardSlateBorder)
                 ) {
-                    Text("Tutup", fontSize = 12.sp)
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Kembali", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

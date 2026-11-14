@@ -1,5 +1,7 @@
 package com.example
 
+import com.example.ui.components.MriGlobalAssetCatalog
+import com.example.ui.components.MriGlobalAssetKey
 import com.example.util.MriMinigameEngine
 import com.example.util.TapAccuracy
 import kotlin.math.abs
@@ -18,6 +20,10 @@ class MriMinigameEngineTest {
         assertTrue(safeCount >= 6)
         assertTrue(unsafeCount >= 6)
         assertTrue(MriMinigameEngine.screeningBank.all { it.reason.isNotBlank() && it.assetKey.isNotBlank() })
+        MriMinigameEngine.screeningBank.forEach { item ->
+            val resolved = MriGlobalAssetCatalog.resolveKey(item.assetKey)
+            assertNotEquals("Item ${item.id} should resolve dedicated asset", MriGlobalAssetKey.FALLBACK_MRI, resolved)
+        }
     }
 
     @Test

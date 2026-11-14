@@ -112,6 +112,7 @@ fun MagnetDefenseScreen(
     var isPaused by remember { mutableStateOf(false) }
     var reported by remember { mutableStateOf(false) }
     var lastTapRipple by remember { mutableStateOf<Offset?>(null) }
+    var lastPopup by remember { mutableStateOf<Triple<Offset, String, Boolean>?>(null) }
     var nanoTipTap by remember { mutableIntStateOf(0) }
     var customNanoTip by remember { mutableStateOf<String?>(null) }
 
@@ -121,10 +122,11 @@ fun MagnetDefenseScreen(
         label = "defense_nano_bounce"
     )
 
-    LaunchedEffect(lastTapRipple) {
-        if (lastTapRipple != null) {
-            delay(220L)
+    LaunchedEffect(lastTapRipple, lastPopup) {
+        if (lastTapRipple != null || lastPopup != null) {
+            delay(420L)
             lastTapRipple = null
+            lastPopup = null
         }
     }
 
@@ -413,11 +415,22 @@ fun MagnetDefenseScreen(
                 }
 
                 val dashPhase = (gameState.elapsedSec * 45f) % 26f
+                val threatNear = gameState.items.any {
+                    it.category == DefenseItemCategory.MR_UNSAFE &&
+                        kotlin.math.hypot(it.x - MriArcadeEngine.BORE_CENTER_X, it.y - MriArcadeEngine.BORE_CENTER_Y) <= MriArcadeEngine.FIVE_GAUSS_RADIUS + 0.13f
+                }
+                if (threatNear) {
+                    drawCircle(
+                        color = RoseDanger.copy(alpha = 0.24f),
+                        radius = r5G * 1.38f,
+                        center = center
+                    )
+                }
                 drawCircle(
-                    color = RoseDanger.copy(alpha = 0.88f),
+                    color = if (threatNear) RoseDanger else RoseDanger.copy(alpha = 0.88f),
                     radius = r5G,
                     center = center,
-                    style = Stroke(width = 4.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 10f), dashPhase))
+                    style = Stroke(width = if (threatNear) 6f else 4.5f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(16f, 10f), dashPhase))
                 )
                 drawCircle(CyanPrimary.copy(alpha = 0.22f), r5G * 0.78f, center)
                 drawCircle(CardSlate, r5G * 0.62f, center)
@@ -425,10 +438,16 @@ fun MagnetDefenseScreen(
 
                 lastTapRipple?.let { rippleCenter ->
                     drawCircle(
-                        color = CyanBright.copy(alpha = 0.45f),
-                        radius = 34.dp.toPx(),
+                        color = CyanBright.copy(alpha = 0.55f),
+                        radius = 36.dp.toPx(),
                         center = rippleCenter,
-                        style = Stroke(width = 3.5f)
+                        style = Stroke(width = 4f)
+                    )
+                    drawCircle(
+                        color = AmberWarning.copy(alpha = 0.35f),
+                        radius = 20.dp.toPx(),
+                        center = rippleCenter,
+                        style = Stroke(width = 2.5f)
                     )
                 }
             }
@@ -441,6 +460,7 @@ fun MagnetDefenseScreen(
                             lastTapRipple = tapOffset
                             val normX = (tapOffset.x / widthPx).coerceIn(0f, 1f)
                             val normY = (tapOffset.y / heightPx).coerceIn(0f, 1f)
+                            val prevScore = gameState.score
                             val nextState = MriArcadeEngine.tapDefenseAtNormalized(
                                 state = gameState,
                                 normX = normX,
@@ -449,8 +469,11 @@ fun MagnetDefenseScreen(
                             )
                             if (nextState.deflectedCount > gameState.deflectedCount) {
                                 haptics.mediumAction()
+                                val delta = nextState.score - prevScore
+                                lastPopup = Triple(tapOffset, "+$delta", true)
                             } else if (!nextState.lastEventGood && nextState !== gameState) {
                                 haptics.warningBuzz()
+                                lastPopup = Triple(tapOffset, "MR SAFE!", false)
                             } else {
                                 haptics.lightToggle()
                             }
@@ -482,17 +505,33 @@ fun MagnetDefenseScreen(
                             .clip(CircleShape)
                             .androidxComposePointerTap {
                                 if (!isPaused && !gameState.isGameOver) {
-                                    lastTapRipple = Offset(proj.x * widthPx, proj.y * heightPx)
+                                    val hitCenter = Offset(proj.x * widthPx, proj.y * heightPx)
+                                    lastTapRipple = hitCenter
+                                    val prevScore = gameState.score
                                     val nextState = MriArcadeEngine.tapDefenseProjectile(gameState, proj.id)
-                                    if (isUnsafe) haptics.mediumAction() else haptics.warningBuzz()
+                                    if (isUnsafe) {
+                                        haptics.mediumAction()
+                                        lastPopup = Triple(hitCenter, "+${nextState.score - prevScore}", true)
+                                    } else {
+                                        haptics.warningBuzz()
+                                        lastPopup = Triple(hitCenter, "MR SAFE!", false)
+                                    }
                                     gameState = nextState
                                 }
                             }
                             .clickable(role = Role.Button) {
                                 if (!isPaused && !gameState.isGameOver) {
-                                    lastTapRipple = Offset(proj.x * widthPx, proj.y * heightPx)
+                                    val hitCenter = Offset(proj.x * widthPx, proj.y * heightPx)
+                                    lastTapRipple = hitCenter
+                                    val prevScore = gameState.score
                                     val nextState = MriArcadeEngine.tapDefenseProjectile(gameState, proj.id)
-                                    if (isUnsafe) haptics.mediumAction() else haptics.warningBuzz()
+                                    if (isUnsafe) {
+                                        haptics.mediumAction()
+                                        lastPopup = Triple(hitCenter, "+${nextState.score - prevScore}", true)
+                                    } else {
+                                        haptics.warningBuzz()
+                                        lastPopup = Triple(hitCenter, "MR SAFE!", false)
+                                    }
                                     gameState = nextState
                                 }
                             }
@@ -522,6 +561,28 @@ fun MagnetDefenseScreen(
                             )
                         }
                     }
+                }
+            }
+
+            lastPopup?.let { (pos, label, good) ->
+                Surface(
+                    modifier = Modifier.offset {
+                        IntOffset(
+                            (pos.x - 36f).roundToInt().coerceIn(8, (widthPx - 96f).toInt().coerceAtLeast(8)),
+                            (pos.y - 44f).roundToInt().coerceIn(8, (heightPx - 48f).toInt().coerceAtLeast(8))
+                        )
+                    },
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (good) EmeraldSuccess else RoseDanger,
+                    shadowElevation = 6.dp
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (good) DeepObsidian else Color.White,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
                 }
             }
 

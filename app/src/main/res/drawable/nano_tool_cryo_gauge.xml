@@ -1,0 +1,48 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Gauge Tekanan Helium 4,2K di tangan kanan Nano -->
+    <!-- Pipa konektor bawah -->
+    <path
+        android:pathData="M768,808 H812 V872 H768 Z"
+        android:fillColor="#64748B"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="10" />
+    <!-- Rumah lingkaran manometer -->
+    <path
+        android:pathData="M790,642 A96,96 0 1 0 790.1,642 Z"
+        android:fillColor="#CBD5E1"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12" />
+    <!-- Muka dial -->
+    <path
+        android:pathData="M790,664 A74,74 0 1 0 790.1,664 Z"
+        android:fillColor="#0F172A"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="7" />
+    <!-- Busur zona aman hijau & bahaya merah -->
+    <path
+        android:pathData="M736,746 C736,704 776,680 818,690"
+        android:fillColor="#00000000"
+        android:strokeColor="#10B981"
+        android:strokeWidth="12"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M826,694 C842,704 848,724 844,746"
+        android:fillColor="#00000000"
+        android:strokeColor="#EF4444"
+        android:strokeWidth="12"
+        android:strokeLineCap="round" />
+    <!-- Jarum penunjuk & poros -->
+    <path
+        android:pathData="M790,742 L754,698"
+        android:fillColor="#00000000"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M790,728 A14,14 0 1 0 790.1,728 Z"
+        android:fillColor="#E2E8F0" />
+</vector>

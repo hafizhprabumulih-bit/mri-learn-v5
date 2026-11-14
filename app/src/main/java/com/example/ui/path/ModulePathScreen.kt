@@ -23,10 +23,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FastForward
 import androidx.compose.material.icons.filled.Info
@@ -115,7 +118,8 @@ fun ModulePathScreen(
     onOpenNodeReader: (String) -> Unit,
     onOpenAllNodesReader: () -> Unit,
     onOpenFlashcards: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onOpenLesson: (String) -> Unit = onOpenNodeReader
 ) {
     BackHandler {
         viewModel.navigateBack()
@@ -263,6 +267,101 @@ fun ModulePathScreen(
             onOpenAllNodes = onOpenAllNodesReader,
             onOpenFlashcards = onOpenFlashcards
         )
+
+        // Indikator Visual 'Terakhir Dibaca' agar pengguna dapat langsung melanjutkan pembelajaran
+        currentNodeState?.let { lastReadNode ->
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+                    .clip(RoundedCornerShape(16.dp))
+                    .clickable {
+                        pathHolder.setPreferredReaderModeAsync("LESSON")
+                        onOpenLesson(lastReadNode.node.code)
+                    },
+                shape = RoundedCornerShape(16.dp),
+                color = DarkNavySlate,
+                border = BorderStroke(1.2.dp, CyanBright.copy(alpha = 0.85f)),
+                shadowElevation = 6.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(CyanPrimary.copy(alpha = 0.20f))
+                            .border(1.2.dp, CyanBright, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Bookmark,
+                            contentDescription = null,
+                            tint = CyanBright,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(999.dp),
+                                color = CyanBright.copy(alpha = 0.22f)
+                            ) {
+                                Text(
+                                    text = "TERAKHIR DIBACA",
+                                    fontSize = 9.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = CyanBright,
+                                    letterSpacing = 0.6.sp,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                            Text(
+                                text = lastReadNode.node.code,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TextSecondary
+                            )
+                        }
+                        Text(
+                            text = lastReadNode.node.title,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = TextPrimary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                    Button(
+                        onClick = {
+                            pathHolder.setPreferredReaderModeAsync("LESSON")
+                            onOpenLesson(lastReadNode.node.code)
+                        },
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 38.dp)
+                            .height(38.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = CyanPrimary,
+                            contentColor = DeepObsidian
+                        ),
+                        contentPadding = PaddingValues(horizontal = 12.dp)
+                    ) {
+                        Text(
+                            text = "Lanjut →",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.ExtraBold
+                        )
+                    }
+                }
+            }
+        }
 
         Box(
             modifier = Modifier
@@ -636,9 +735,16 @@ fun ModulePathScreen(
                 previousNodeState = previousNode,
                 skipPlan = skipPlan,
                 onDismiss = { selectedNodeState = null },
+                onStartLesson = {
+                    val code = sheetNodeState.node.code
+                    selectedNodeState = null
+                    pathHolder.setPreferredReaderModeAsync("LESSON")
+                    onOpenLesson(code)
+                },
                 onStartReading = {
                     val code = sheetNodeState.node.code
                     selectedNodeState = null
+                    pathHolder.setPreferredReaderModeAsync("QUICK_READ")
                     onOpenNodeReader(code)
                 },
                 onLaunchLab = { labType ->
@@ -920,17 +1026,48 @@ private fun PathNodeSlotContent(
     val shortCode = NodeDisplay.shortCode(node.code)
     val cleanTitle = NodeDisplay.displayTitle(node)
 
-    // Semua simpul materi menjadi kotak toggle bergaya "M01" tanpa teks penjelasan di bawahnya
-    PathNodeButton(
-        status = status,
-        kind = indexedNode.kind,
-        label = shortCode,
-        onClick = onClick,
-        accentColor = accentColor,
-        hasLabBadge = !node.labType.isNullOrBlank(),
-        semanticLabel = "$shortCode $cleanTitle",
-        modifier = Modifier.testTag("path_node_${node.code}")
-    )
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        if (status == NodeStatus.CURRENT) {
+            Surface(
+                shape = RoundedCornerShape(999.dp),
+                color = CyanBright,
+                shadowElevation = 4.dp
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(DeepObsidian)
+                    )
+                    Text(
+                        text = "TERAKHIR DIBACA",
+                        fontSize = 8.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = DeepObsidian
+                    )
+                }
+            }
+        }
+
+        PathNodeButton(
+            status = status,
+            kind = indexedNode.kind,
+            label = shortCode,
+            onClick = onClick,
+            accentColor = accentColor,
+            hasLabBadge = !node.labType.isNullOrBlank(),
+            semanticLabel = "$shortCode $cleanTitle",
+            modifier = Modifier.testTag("path_node_${node.code}")
+        )
+    }
 }
 
 @Composable
@@ -944,6 +1081,7 @@ private fun NodePreviewBottomSheetContent(
     previousNodeState: PathNodeState?,
     skipPlan: SkipTestPlan?,
     onDismiss: () -> Unit,
+    onStartLesson: () -> Unit,
     onStartReading: () -> Unit,
     onLaunchLab: (String) -> Unit,
     onOpenNodeQuiz: (Int) -> Unit,
@@ -1197,38 +1335,100 @@ private fun NodePreviewBottomSheetContent(
                     )
                 }
             }
-            Button(
-                onClick = onStartReading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .defaultMinSize(minHeight = 48.dp)
-                    .testTag("sheet_start_learning_${node.code}"),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (nodeState.status == NodeStatus.DONE) EmeraldSuccess else CyanPrimary
-                )
-            ) {
-                Icon(
-                    imageVector = if (nodeState.status == NodeStatus.DONE) {
-                        Icons.Default.CheckCircle
-                    } else {
-                        Icons.Default.PlayArrow
-                    },
-                    contentDescription = null,
-                    tint = DeepObsidian,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = when (nodeState.status) {
-                        NodeStatus.DONE -> "Baca ulang materi"
-                        NodeStatus.SKIPPED -> "Baca & klaim +10 XP"
-                        else -> "Mulai belajar"
-                    },
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = DeepObsidian
-                )
+            if (com.example.util.lesson.LESSON_FLOW_ENABLED) {
+                Button(
+                    onClick = onStartLesson,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .testTag("sheet_start_learning_${node.code}"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (nodeState.status == NodeStatus.DONE) EmeraldSuccess else CyanPrimary
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (nodeState.status == NodeStatus.DONE) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.PlayArrow
+                        },
+                        contentDescription = null,
+                        tint = DeepObsidian,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when (nodeState.status) {
+                            NodeStatus.DONE -> "Ulangi pelajaran"
+                            NodeStatus.SKIPPED -> "Mulai pelajaran (+10 XP)"
+                            else -> "Mulai pelajaran"
+                        },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DeepObsidian
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                OutlinedButton(
+                    onClick = onStartReading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .testTag("sheet_quick_read_${node.code}"),
+                    shape = RoundedCornerShape(14.dp),
+                    border = BorderStroke(1.dp, CardSlateBorder)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.FormatListBulleted,
+                        contentDescription = null,
+                        tint = CyanBright,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Baca cepat",
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextPrimary
+                    )
+                }
+            } else {
+                Button(
+                    onClick = onStartReading,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minHeight = 48.dp)
+                        .testTag("sheet_start_learning_${node.code}"),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (nodeState.status == NodeStatus.DONE) EmeraldSuccess else CyanPrimary
+                    )
+                ) {
+                    Icon(
+                        imageVector = if (nodeState.status == NodeStatus.DONE) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.PlayArrow
+                        },
+                        contentDescription = null,
+                        tint = DeepObsidian,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = when (nodeState.status) {
+                            NodeStatus.DONE -> "Baca ulang materi"
+                            NodeStatus.SKIPPED -> "Baca & klaim +10 XP"
+                            else -> "Mulai belajar"
+                        },
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DeepObsidian
+                    )
+                }
             }
 
             if (!node.labType.isNullOrBlank() || quizCount > 0) {

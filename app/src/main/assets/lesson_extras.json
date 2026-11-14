@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "nodes": {
+    "M01.T0": {
+      "nanoHints": [
+        "Itu sebabnya MRI bagus untuk jaringan lunak.",
+        "Semakin besar B₀, semakin cepat presesi proton."
+      ],
+      "recap": [
+        "Hidrogen di air dan lemak menjadi sumber sinyal MRI.",
+        "Proton berpresesi pada frekuensi Larmor, f₀ = γ · B₀.",
+        "Pulsa RF pada frekuensi itu mengeksitasi proton, lalu muncul sinyal FID."
+      ],
+      "stories": [
+        {
+          "id": "story:M01.T0:1",
+          "scenario": "Pasien masuk ke ruang MRI 1,5 T untuk pemeriksaan lutut. Di konsol, mesin menampilkan frekuensi kerja sekitar 63,87 MHz.",
+          "question": "Dari mana angka 63,87 MHz itu berasal, dan mengapa pulsa RF harus disetel ke frekuensi tersebut?",
+          "options": [
+            "Dari f₀ = γ · B₀ untuk hidrogen (42,58 MHz/T × 1,5 T); agar pulsa RF beresonansi dengan proton",
+            "Dari daya listrik gedung rumah sakit dikali ukuran kumparan lutut",
+            "Dari suhu helium cair di dalam magnet dibagi waktu pemeriksaan",
+            "Angka acak yang dipilih operator supaya gambar lebih terang"
+          ],
+          "correctIndex": 0,
+          "explanation": "Frekuensi Larmor hidrogen pada 1,5 T adalah 42,58 × 1,5 ≈ 63,87 MHz. Pulsa RF harus cocok dengan frekuensi ini agar terjadi resonansi.",
+          "followUps": [
+            "Apa arti simbol γ?",
+            "Apa yang terjadi pada 3,0 T?"
+          ],
+          "reviewed": false,
+          "reviewedBy": null,
+          "reviewedAt": null
+        }
+      ],
+      "interactive": {
+        "type": "REVEAL_CHAIN",
+        "title": "Urutan dasar sinyal MRI",
+        "intro": "Ikuti bagaimana sinyal MRI muncul dari awal sampai terbaca kumparan.",
+        "steps": [
+          { "text": "Pasien berada di medan magnet utama B₀: spin proton mulai sejajar dan membentuk magnetisasi bersih M₀." },
+          {
+            "text": "Pulsa RF pada frekuensi Larmor dikirim: M₀ rebah ke bidang transversal dan spin bergerak sefase.",
+            "prediction": {
+              "question": "Tebak dulu: apa yang memicu M₀ rebah ke bidang transversal?",
+              "options": ["Pulsa RF pada frekuensi Larmor", "Gradien dimatikan", "Meja pasien bergerak"],
+              "correctIndex": 0
+            }
+          },
+          { "text": "Pulsa RF berhenti: magnetisasi berpresesi dan menginduksi sinyal FID di kumparan penerima, sambil mengalami relaksasi T1 dan T2." }
+        ],
+        "reviewed": false
+      }
+    }
+  }
+}

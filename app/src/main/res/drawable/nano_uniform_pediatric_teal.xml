@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Scrub Pediatrik Teal lembut di torso Nano -->
+    <path
+        android:pathData="M342,608 C392,584 632,584 682,608 L702,802 C690,842 610,864 512,864 C414,864 334,842 322,802 Z"
+        android:fillColor="#14B8A6"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12"
+        android:strokeLineJoin="round" />
+    <!-- Kerah V scrub -->
+    <path
+        android:pathData="M438,592 L512,664 L586,592 L552,586 L512,626 L472,586 Z"
+        android:fillColor="#F0FDFA"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="10"
+        android:strokeLineJoin="round" />
+    <!-- Saku ceria warna amber & motif bintang ramah anak -->
+    <path
+        android:pathData="M562,698 H648 A14,14 0 0 1 662,712 V762 A14,14 0 0 1 648,776 H562 A14,14 0 0 1 548,762 V712 A14,14 0 0 1 562,698 Z"
+        android:fillColor="#0F766E"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="8" />
+    <!-- Ikon bintang ramah pediatrik -->
+    <path
+        android:pathData="M605,716 L613,732 L630,735 L617,746 L620,762 L605,754 L590,762 L593,746 L580,735 L597,732 Z"
+        android:fillColor="#FBBF24"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="5"
+        android:strokeLineJoin="round" />
+    <!-- Lis bahu putih -->
+    <path
+        android:pathData="M352,630 H412 M612,630 H672"
+        android:fillColor="#00000000"
+        android:strokeColor="#99F6E4"
+        android:strokeWidth="10"
+        android:strokeLineCap="round" />
+</vector>

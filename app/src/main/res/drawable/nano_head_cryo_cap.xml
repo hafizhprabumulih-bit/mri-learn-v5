@@ -1,0 +1,39 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Topi Kriogenik 4K berinsulasi di puncak kepala Nano -->
+    <path
+        android:pathData="M214,206 C228,112 350,74 512,74 C674,74 796,112 810,206 L792,232 C680,202 344,202 232,232 Z"
+        android:fillColor="#1E3A8A"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12"
+        android:strokeLineJoin="round" />
+    <!-- Lis pelindung tepi bawah topi -->
+    <path
+        android:pathData="M204,202 C330,174 694,174 820,202 L810,236 C686,210 338,210 214,236 Z"
+        android:fillColor="#38BDF8"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="11"
+        android:strokeLineJoin="round" />
+    <!-- Garis jahitan panel -->
+    <path
+        android:pathData="M368,94 C350,126 346,160 350,186 M656,94 C674,126 678,160 674,186"
+        android:fillColor="#00000000"
+        android:strokeColor="#93C5FD"
+        android:strokeWidth="7"
+        android:strokeLineCap="round" />
+    <!-- Lencana kristal es 4K -->
+    <path
+        android:pathData="M472,110 H552 A18,18 0 0 1 570,128 V162 A18,18 0 0 1 552,180 H472 A18,18 0 0 1 454,162 V128 A18,18 0 0 1 472,110 Z"
+        android:fillColor="#0F172A"
+        android:strokeColor="#BAE6FD"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M512,124 V166 M492,135 L532,155 M532,135 L492,155"
+        android:fillColor="#00000000"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="8"
+        android:strokeLineCap="round" />
+</vector>

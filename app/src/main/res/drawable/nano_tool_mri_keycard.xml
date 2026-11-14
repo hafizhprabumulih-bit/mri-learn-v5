@@ -1,0 +1,46 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Kartu Akses Pintar Zona IV bertali di tangan kanan Nano -->
+    <!-- Tali lanyard ke atas tangan -->
+    <path
+        android:pathData="M760,642 L788,582 L816,642"
+        android:fillColor="#00000000"
+        android:strokeColor="#06B6D4"
+        android:strokeWidth="12"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Badan kartu -->
+    <path
+        android:pathData="M716,648 H860 A18,18 0 0 1 878,666 V846 A18,18 0 0 1 860,864 H716 A18,18 0 0 1 698,846 V666 A18,18 0 0 1 716,648 Z"
+        android:fillColor="#F8FAFC"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12" />
+    <!-- Header kartu Zona IV -->
+    <path
+        android:pathData="M708,654 H868 V706 H708 Z"
+        android:fillColor="#0E7490"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="8" />
+    <!-- Ikon gembok terbuka / akses magnet -->
+    <path
+        android:pathData="M752,742 H824 V798 H752 Z"
+        android:fillColor="#22D3EE"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M768,742 V724 C768,712 808,712 808,724 V742"
+        android:fillColor="#00000000"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="8"
+        android:strokeLineCap="round" />
+    <!-- Garis info & chip -->
+    <path
+        android:pathData="M736,826 H840"
+        android:fillColor="#00000000"
+        android:strokeColor="#0F172A"
+        android:strokeWidth="10"
+        android:strokeLineCap="round" />
+</vector>

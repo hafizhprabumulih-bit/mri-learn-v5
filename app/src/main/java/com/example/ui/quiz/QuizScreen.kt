@@ -157,7 +157,11 @@ fun QuizScreen(
         mutableIntStateOf(0) // 0 = Default, 1 = Petunjuk, 2 = Fakta MRI, 3 = Fokus Kunci, 4 = Semangat
     }
 
+    val catalogQuizIds = remember(state.quizzesList) {
+        state.quizzesList.mapTo(HashSet()) { it.id }
+    }
     val scopedAttempts = state.quizAttempts.filter { attempt ->
+        if (attempt.quizId !in catalogQuizIds) return@filter false
         val filter = state.quizModuleFilter
         filter == "SEMUA" ||
             attempt.moduleId == filter ||
@@ -658,179 +662,98 @@ fun QuizScreen(
                     currentQuiz.moduleId.startsWith("M07", ignoreCase = true) ->
                         "Hati-hati, pikirkan keselamatan ${currentQuiz.levelBadge} (${currentQuiz.nodeCode})!"
                     else ->
-                        "Ketuk Nano atau tombol interaksi di bawah untuk petunjuk soal ${currentQuiz.nodeCode}!"
+                        "Ketuk Nano di samping untuk petunjuk soal ${currentQuiz.nodeCode}!"
                 }
 
-                // KARTU ATAS BERDAMPINGAN (SIDE-BY-SIDE): Nano Proporsional di Kiri + Dialog Awan & Interaksi Beragam di Kanan
-                Card(
+                // AREA NANO INTERAKTIF TRANSPARAN: Maskot berdiri bebas tanpa kartu kaku
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable {
-                            mriHaptics.lightToggle()
-                            nanoInteractionMode = (nanoInteractionMode + 1) % 5
-                            showPreSubmitHint = !showPreSubmitHint
-                            nanoTapBounceCount++
-                        },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = androidx.compose.ui.graphics.Color(0xFF0A1D33)),
-                    border = BorderStroke(
-                        1.2.dp,
-                        when {
-                            activeSubmitted && isAnswerCorrect -> EmeraldSuccess.copy(alpha = 0.70f)
-                            activeSubmitted && !isAnswerCorrect -> RoseDanger.copy(alpha = 0.70f)
-                            else -> CyanPrimary.copy(alpha = 0.45f)
-                        }
-                    )
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
                 ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                brush = androidx.compose.ui.graphics.Brush.horizontalGradient(
-                                    colors = listOf(
-                                        androidx.compose.ui.graphics.Color(0xFF0B1F36),
-                                        androidx.compose.ui.graphics.Color(0xFF0E2C4C)
-                                    )
-                                )
-                            )
-                            .padding(horizontal = 12.dp, vertical = 9.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
-                        ) {
-                            // Nano dengan ukuran proporsional di sisi kiri
-                            Box(
-                                modifier = Modifier.size(width = 64.dp, height = 64.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Canvas(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomCenter)
-                                        .size(width = 54.dp, height = 14.dp)
-                                ) {
-                                    drawOval(
-                                        color = CyanBright.copy(alpha = 0.28f),
-                                        topLeft = Offset(0f, size.height * 0.15f),
-                                        size = Size(size.width, size.height * 0.75f)
-                                    )
-                                }
-                                AvatarView(
-                                    role = state.characterCustomization.avatarId,
-                                    equipped = state.characterCustomization,
-                                    expression = quizExpression,
-                                    modifier = Modifier
-                                        .size(56.dp)
-                                        .graphicsLayer {
-                                            translationY = nanoBob * 1.5f
-                                            rotationZ = nanoTilt
-                                            scaleX = nanoTapScale
-                                            scaleY = nanoTapScale
-                                        }
-                                )
-                            }
-
-                            // Balon Dialog Nano di samping kanan agar hemat ruang vertikal
-                            Surface(
-                                modifier = Modifier.weight(1f),
-                                shape = RoundedCornerShape(
-                                    topStart = 6.dp,
-                                    topEnd = 16.dp,
-                                    bottomStart = 16.dp,
-                                    bottomEnd = 16.dp
-                                ),
-                                color = when {
-                                    activeSubmitted && isAnswerCorrect -> androidx.compose.ui.graphics.Color(0xFFDFF7EE)
-                                    activeSubmitted && !isAnswerCorrect -> androidx.compose.ui.graphics.Color(0xFFFCE4E8)
-                                    else -> androidx.compose.ui.graphics.Color(0xFFE2EFF8)
+                        // Jendela Nano berdiri langsung di atas latar belakang dengan bayangan lantai halus
+                        Box(
+                            modifier = Modifier
+                                .size(width = 96.dp, height = 96.dp)
+                                .clickable {
+                                    mriHaptics.lightToggle()
+                                    nanoInteractionMode = (nanoInteractionMode + 1) % 5
+                                    showPreSubmitHint = !showPreSubmitHint
+                                    nanoTapBounceCount++
                                 },
-                                border = BorderStroke(
-                                    1.2.dp,
-                                    when {
-                                        activeSubmitted && isAnswerCorrect -> EmeraldSuccess
-                                        activeSubmitted && !isAnswerCorrect -> RoseDanger
-                                        else -> CyanBright.copy(alpha = 0.65f)
-                                    }
-                                )
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Canvas(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(bottom = 4.dp)
+                                    .size(width = 74.dp, height = 16.dp)
                             ) {
-                                Text(
-                                    text = bubbleMessage,
-                                    fontSize = 11.8.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = androidx.compose.ui.graphics.Color(0xFF0B192C),
-                                    lineHeight = 15.8.sp,
-                                    modifier = Modifier.padding(horizontal = 11.dp, vertical = 8.dp)
+                                drawOval(
+                                    color = CyanBright.copy(alpha = 0.28f),
+                                    topLeft = Offset(0f, size.height * 0.15f),
+                                    size = Size(size.width, size.height * 0.75f)
                                 )
                             }
+                            AvatarView(
+                                role = state.characterCustomization.avatarId,
+                                equipped = state.characterCustomization,
+                                expression = quizExpression,
+                                modifier = Modifier
+                                    .size(88.dp)
+                                    .graphicsLayer {
+                                        translationY = nanoBob * 1.6f
+                                        rotationZ = nanoTilt
+                                        scaleX = nanoTapScale
+                                        scaleY = nanoTapScale
+                                    }
+                            )
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        // Baris Interaksi Nano Beragam (Petunjuk, Fakta, Fokus, Semangat, Ganti Paket)
-                        Row(
+                        // Balon Dialog Nano di samping kanan dengan keterbacaan lebih lega
+                        Surface(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            val nanoActions = listOf(
-                                1 to "💡 Petunjuk",
-                                2 to "🔬 Fakta MRI",
-                                3 to "🎯 Fokus Kunci",
-                                4 to "⚡ Semangat"
+                                .weight(1f)
+                                .defaultMinSize(minHeight = 84.dp)
+                                .clickable {
+                                    mriHaptics.lightToggle()
+                                    nanoInteractionMode = (nanoInteractionMode + 1) % 5
+                                    showPreSubmitHint = !showPreSubmitHint
+                                    nanoTapBounceCount++
+                                },
+                            shape = RoundedCornerShape(
+                                topStart = 8.dp,
+                                topEnd = 16.dp,
+                                bottomStart = 16.dp,
+                                bottomEnd = 16.dp
+                            ),
+                            color = when {
+                                activeSubmitted && isAnswerCorrect -> androidx.compose.ui.graphics.Color(0xFFDFF7EE)
+                                activeSubmitted && !isAnswerCorrect -> androidx.compose.ui.graphics.Color(0xFFFCE4E8)
+                                else -> androidx.compose.ui.graphics.Color(0xFFE2EFF8)
+                            },
+                            border = BorderStroke(
+                                1.2.dp,
+                                when {
+                                    activeSubmitted && isAnswerCorrect -> EmeraldSuccess
+                                    activeSubmitted && !isAnswerCorrect -> RoseDanger
+                                    else -> CyanBright.copy(alpha = 0.65f)
+                                }
                             )
-                            nanoActions.forEach { (modeId, label) ->
-                                val selectedMode = nanoInteractionMode == modeId
-                                Surface(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable {
-                                            mriHaptics.lightToggle()
-                                            nanoInteractionMode = if (selectedMode) 0 else modeId
-                                            nanoTapBounceCount++
-                                        },
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = if (selectedMode) CyanPrimary else CardSlate.copy(alpha = 0.9f),
-                                    border = BorderStroke(
-                                        1.dp,
-                                        if (selectedMode) CyanBright else CyanPrimary.copy(alpha = 0.4f)
-                                    )
-                                ) {
-                                    Text(
-                                        text = label,
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = if (selectedMode) DeepObsidian else CyanBright,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
-                                    )
-                                }
-                            }
-
-                            if (state.quizModuleFilter != "SEMUA") {
-                                Surface(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .clickable {
-                                            mriHaptics.lightToggle()
-                                            viewModel.setQuizModuleFilter("SEMUA")
-                                            isFilterExpanded = true
-                                        }
-                                        .testTag("quiz_reset_module_package"),
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = CardSlate.copy(alpha = 0.85f),
-                                    border = BorderStroke(1.dp, CardSlateBorder)
-                                ) {
-                                    Text(
-                                        text = "Semua Paket (${currentQuiz.moduleId})",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TextSecondary,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.5.dp)
-                                    )
-                                }
-                            }
+                        ) {
+                            Text(
+                                text = bubbleMessage,
+                                fontSize = 12.6.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = androidx.compose.ui.graphics.Color(0xFF0B192C),
+                                lineHeight = 17.5.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                            )
                         }
                     }
                 }
@@ -978,9 +901,10 @@ fun QuizScreen(
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
         }
 
         // 4. DOCK TOMBOL AKSI BAWAH PINNED: Selalu mudah dijangkau ibu jari!

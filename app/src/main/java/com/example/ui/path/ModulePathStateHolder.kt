@@ -118,6 +118,67 @@ class ModulePathStateHolder(context: Context) {
 
     val arcadeStatsFlow: Flow<com.example.data.ArcadeStats> = repository.arcadeStatsFlow
 
+    val preferredReaderModeFlow: Flow<String> = repository.preferredReaderModeFlow
+
+    val lessonTapHintCountFlow: Flow<Int> = repository.lessonTapHintCountFlow
+
+    val manualReviewNodesFlow: Flow<Set<String>> = repository.manualReviewNodesFlow
+
+    val allowLessonDraftsFlow: Flow<Boolean> = repository.allowLessonDraftsFlow
+
+    val lessonExtras: com.example.data.lesson.LessonExtras by lazy {
+        com.example.data.lesson.LessonExtrasLoader.load(appContext)
+    }
+
+    fun observeSavedLessonStep(nodeCode: String): Flow<Int> =
+        repository.observeSavedLessonStep(nodeCode)
+
+    fun saveLessonStepAsync(nodeCode: String, stepIndex: Int): Job =
+        persistenceScope.launch {
+            repository.saveLessonStep(nodeCode, stepIndex)
+        }
+
+    fun clearLessonStepAsync(nodeCode: String): Job =
+        persistenceScope.launch {
+            repository.clearLessonStep(nodeCode)
+        }
+
+    fun setPreferredReaderModeAsync(mode: String): Job =
+        persistenceScope.launch {
+            repository.setPreferredReaderMode(mode)
+        }
+
+    fun incrementLessonTapHintCountAsync(): Job =
+        persistenceScope.launch {
+            repository.incrementLessonTapHintCount()
+        }
+
+    fun setNodeManualReviewAsync(nodeCode: String, enabled: Boolean): Job =
+        persistenceScope.launch {
+            repository.setNodeManualReview(nodeCode, enabled)
+        }
+
+    fun setAllowLessonDraftsAsync(allow: Boolean): Job =
+        persistenceScope.launch {
+            repository.setAllowLessonDrafts(allow)
+        }
+
+    fun recordLessonQuizAttemptAsync(
+        quizId: String,
+        nodeCode: String,
+        moduleId: String? = null,
+        selectedIndex: Int,
+        isCorrect: Boolean
+    ): Job = persistenceScope.launch {
+        repository.recordLessonQuizAttempt(
+            quizId = quizId,
+            rawNodeCode = nodeCode,
+            explicitModuleId = moduleId,
+            selectedIndex = selectedIndex,
+            isCorrect = isCorrect
+        )
+    }
+
     fun observeDailyShiftCounts(todayKey: String): Flow<Triple<Int, Int, Int>> =
         repository.observeDailyShiftCounts(todayKey)
 

@@ -322,6 +322,30 @@ object CharacterCatalog {
             secondaryColorHex = 0xFF22D3EE,
             drawableRes = R.drawable.nano_head_loupe,
             unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "hair_bandana_3t",
+            name = "Bandana Teknis 3T",
+            category = CharacterCategory.RAMBUT,
+            description = "Ikat kepala non-magnetik dengan emblem 3 Tesla untuk shift cepat di ruang konsol.",
+            clinicalBenefit = "Menjaga rambut tetap rapi tanpa jepit logam di dekat Zona III–IV",
+            badgeLabel = "3T Shift",
+            previewColorHex = 0xFF0E7490,
+            secondaryColorHex = 0xFF22D3EE,
+            drawableRes = R.drawable.nano_head_bandana_3t,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "hair_cryo_cap",
+            name = "Topi Kriogenik 4K",
+            category = CharacterCategory.RAMBUT,
+            description = "Topi pelindung berinsulasi suhu ekstrem dengan lencana kristal helium 4,2 Kelvin.",
+            clinicalBenefit = "Proteksi dingin saat inspeksi tangki kriogenik & jalur ventilasi quench",
+            badgeLabel = "4,2K Cryo",
+            previewColorHex = 0xFF1E3A8A,
+            secondaryColorHex = 0xFF38BDF8,
+            drawableRes = R.drawable.nano_head_cryo_cap,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
         )
     )
 
@@ -433,6 +457,42 @@ object CharacterCatalog {
             secondaryColorHex = 0xFF34D399,
             drawableRes = R.drawable.nano_uniform_leadfree,
             unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "uniform_cardio_navy",
+            name = "Jas Kardio-MRI Navy",
+            category = CharacterCategory.SERAGAM,
+            description = "Jas navy beraksen monitor gelombang EKG cyan untuk spesialis kardiovaskular MRI.",
+            clinicalBenefit = "Mendukung koordinasi gating R-R & pencitraan bSSFP jantung",
+            badgeLabel = "Kardio ECG",
+            previewColorHex = 0xFF172554,
+            secondaryColorHex = 0xFF22D3EE,
+            drawableRes = R.drawable.nano_uniform_cardio_navy,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "uniform_pediatric_teal",
+            name = "Scrub Pediatrik Ramah",
+            category = CharacterCategory.SERAGAM,
+            description = "Scrub teal lembut dengan pin bintang non-logam agar pasien anak tetap tenang.",
+            clinicalBenefit = "Mengurangi kecemasan & klaustrofobia pasien anak sebelum masuk bore",
+            badgeLabel = "Pediatrik",
+            previewColorHex = 0xFF14B8A6,
+            secondaryColorHex = 0xFFFBBF24,
+            drawableRes = R.drawable.nano_uniform_pediatric_teal,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "uniform_physics_pro",
+            name = "Rompi Fisika K-Space",
+            category = CharacterCategory.SERAGAM,
+            description = "Rompi laboratorium dengan diagram kisi matriks K-space bercahaya di dada.",
+            clinicalBenefit = "Identitas tim kalibrasi SNR, shimming & uji rekonstruksi citra",
+            badgeLabel = "K-Space QA",
+            previewColorHex = 0xFF1E293B,
+            secondaryColorHex = 0xFF38BDF8,
+            drawableRes = R.drawable.nano_uniform_physics_pro,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
         )
     )
 
@@ -519,6 +579,30 @@ object CharacterCatalog {
             previewColorHex = 0xFF1E3A5F,
             secondaryColorHex = 0xFF06B6D4,
             drawableRes = R.drawable.nano_headset_comm_pro,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "headset_stealth_nr",
+            name = "Earmuff EPI -35 dB",
+            category = CharacterCategory.HEADSET,
+            description = "Peredam telinga pasif ultra-tebal bebas logam untuk sekuens gradien bising tinggi.",
+            clinicalBenefit = "Proteksi akustik puncak saat sekuens EPI, DWI, dan TrueFISP",
+            badgeLabel = "-35 dB NRR",
+            previewColorHex = 0xFF1E293B,
+            secondaryColorHex = 0xFF10B981,
+            drawableRes = R.drawable.nano_headset_stealth_nr,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "headset_bone_cond",
+            name = "Headset Konduksi Tulang",
+            category = CharacterCategory.HEADSET,
+            description = "Headset ramping pelipis bebas feromagnetik agar tetap terdengar bersama earplug.",
+            clinicalBenefit = "Komunikasi instruksi tahan napas jelas meski memakai sumbat telinga",
+            badgeLabel = "MR Interkom",
+            previewColorHex = 0xFF06B6D4,
+            secondaryColorHex = 0xFFE2E8F0,
+            drawableRes = R.drawable.nano_headset_bone_cond,
             unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
         )
     )
@@ -618,6 +702,42 @@ object CharacterCatalog {
             previewColorHex = 0xFF06B6D4,
             secondaryColorHex = 0xFF0E7490,
             drawableRes = R.drawable.nano_tool_handbook,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "acc_gaussmeter",
+            name = "Gaussmeter 5-Gauss",
+            category = CharacterCategory.AKSESORIS,
+            description = "Alat ukur kuat medan tepi (fringe field) untuk memverifikasi garis pengaman 0,5 mT.",
+            clinicalBenefit = "Memastikan batas garis 5 Gauss (0,5 mT) aman bagi pasien implan aktif",
+            badgeLabel = "0,5 mT Meter",
+            previewColorHex = 0xFFF59E0B,
+            secondaryColorHex = 0xFF34D399,
+            drawableRes = R.drawable.nano_tool_gaussmeter,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "acc_cryo_gauge",
+            name = "Gauge Helium 4,2K",
+            category = CharacterCategory.AKSESORIS,
+            description = "Manometer tekanan bejana kriostat untuk memantau cadangan pendingin superkonduktor.",
+            clinicalBenefit = "Deteksi dini penurunan tekanan helium cair & kesiapan katup quench",
+            badgeLabel = "Kriogen QA",
+            previewColorHex = 0xFFCBD5E1,
+            secondaryColorHex = 0xFF38BDF8,
+            drawableRes = R.drawable.nano_tool_cryo_gauge,
+            unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
+        ),
+        CharacterItem(
+            id = "acc_mri_keycard",
+            name = "Kartu Akses Zona IV",
+            category = CharacterCategory.AKSESORIS,
+            description = "Kartu passkey terotorisasi untuk membuka pintu fisik terkunci Zona III menuju Zona IV.",
+            clinicalBenefit = "Membatasi akses hanya bagi personel terlatih skrining keselamatan MR",
+            badgeLabel = "Passkey ACR",
+            previewColorHex = 0xFF0E7490,
+            secondaryColorHex = 0xFF22D3EE,
+            drawableRes = R.drawable.nano_tool_mri_keycard,
             unlockRequirement = UnlockRequirement(futureNote = "Tersedia sejak awal")
         )
     )

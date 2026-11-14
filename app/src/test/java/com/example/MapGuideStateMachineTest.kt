@@ -8,16 +8,28 @@ import org.junit.Test
 class MapGuideStateMachineTest {
 
     @Test
-    fun firstVisitWithTargetAndWideScreenStartsAtSpotlight() {
-        val step = MapGuideStateMachine.initialStep(
+    fun firstVisitWithTargetAndWideScreenStartsAtHeaderProfileAndCyclesThroughAllFeatures() {
+        var step = MapGuideStateMachine.initialStep(
             hasSeenGuide = false,
             completedNodeCount = 0,
             hasSpotlightTarget = true,
             screenWidthDp = 360
         )
+        assertEquals(MapGuideStep.HEADER_PROFILE, step)
+        step = MapGuideStateMachine.nextStep(step)
+        assertEquals(MapGuideStep.RESUME_CARD, step)
+        step = MapGuideStateMachine.nextStep(step)
+        assertEquals(MapGuideStep.QUICK_ACTIONS, step)
+        step = MapGuideStateMachine.nextStep(step)
+        assertEquals(MapGuideStep.DAILY_SHIFT, step)
+        step = MapGuideStateMachine.nextStep(step)
         assertEquals(MapGuideStep.SPOTLIGHT, step)
-        assertEquals(MapGuideStep.LEGEND, MapGuideStateMachine.nextStep(step))
-        assertEquals(MapGuideStep.DONE, MapGuideStateMachine.nextStep(MapGuideStep.LEGEND))
+        step = MapGuideStateMachine.nextStep(step)
+        assertEquals(MapGuideStep.BOTTOM_NAV, step)
+        step = MapGuideStateMachine.nextStep(step)
+        assertEquals(MapGuideStep.LEGEND, step)
+        step = MapGuideStateMachine.nextStep(step)
+        assertEquals(MapGuideStep.DONE, step)
     }
 
     @Test

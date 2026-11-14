@@ -218,6 +218,8 @@ object AvatarLayerRegistry {
             "hair_mortarboard" -> R.drawable.nano_head_mortarboard to null
             "hair_beanie_mri" -> R.drawable.nano_head_beanie_mri to null
             "hair_loupe" -> R.drawable.nano_head_loupe to null
+            "hair_bandana_3t" -> R.drawable.nano_head_bandana_3t to null
+            "hair_cryo_cap" -> R.drawable.nano_head_cryo_cap to null
             else -> R.drawable.nano_head_larmor to null
         }
         return AvatarItem(
@@ -241,6 +243,9 @@ object AvatarLayerRegistry {
             "uniform_dosen" -> R.drawable.nano_uniform_dosen to null
             "uniform_mahasiswa" -> R.drawable.nano_uniform_mahasiswa to null
             "uniform_leadfree" -> R.drawable.nano_uniform_leadfree to null
+            "uniform_cardio_navy" -> R.drawable.nano_uniform_cardio_navy to null
+            "uniform_pediatric_teal" -> R.drawable.nano_uniform_pediatric_teal to null
+            "uniform_physics_pro" -> R.drawable.nano_uniform_physics_pro to null
             else -> R.drawable.nano_uniform_scrub_mint to null
         }
         return AvatarItem(
@@ -262,6 +267,8 @@ object AvatarLayerRegistry {
             "headset_holo" -> R.drawable.nano_headset_sar to "m09"
             "headset_lecture" -> R.drawable.nano_headset_lecture to null
             "headset_comm_pro" -> R.drawable.nano_headset_comm_pro to null
+            "headset_stealth_nr" -> R.drawable.nano_headset_stealth_nr to null
+            "headset_bone_cond" -> R.drawable.nano_headset_bone_cond to null
             else -> R.drawable.nano_headset_radio to null
         }
         return AvatarItem(
@@ -284,6 +291,9 @@ object AvatarLayerRegistry {
             "acc_coil_surface" -> R.drawable.nano_tool_coil to "m07"
             "acc_laser_pointer" -> R.drawable.nano_tool_pointer to null
             "acc_handbook_mri" -> R.drawable.nano_tool_handbook to null
+            "acc_gaussmeter" -> R.drawable.nano_tool_gaussmeter to null
+            "acc_cryo_gauge" -> R.drawable.nano_tool_cryo_gauge to null
+            "acc_mri_keycard" -> R.drawable.nano_tool_mri_keycard to null
             else -> R.drawable.nano_tool_detector to null
         }
         return AvatarItem(

@@ -1,0 +1,41 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Bando atas earmuff EPI -35 dB -->
+    <path
+        android:pathData="M158,360 C158,158 310,118 512,118 C714,118 866,158 866,360"
+        android:fillColor="#00000000"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="34"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M158,360 C158,158 310,118 512,118 C714,118 866,158 866,360"
+        android:fillColor="#00000000"
+        android:strokeColor="#10B981"
+        android:strokeWidth="16"
+        android:strokeLineCap="round" />
+    <!-- Earcup kiri tebal NRR 35dB -->
+    <path
+        android:pathData="M126,304 H198 A24,24 0 0 1 222,328 V462 A24,24 0 0 1 198,486 H126 A28,28 0 0 1 98,458 V332 A28,28 0 0 1 126,304 Z"
+        android:fillColor="#1E293B"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12" />
+    <path
+        android:pathData="M132,334 H178 V456 H132 Z"
+        android:fillColor="#10B981"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="6" />
+    <!-- Earcup kanan tebal NRR 35dB -->
+    <path
+        android:pathData="M826,304 H898 A28,28 0 0 1 926,332 V458 A28,28 0 0 1 898,486 H826 A24,24 0 0 1 802,462 V328 A24,24 0 0 1 826,304 Z"
+        android:fillColor="#1E293B"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12" />
+    <path
+        android:pathData="M846,334 H892 V456 H846 Z"
+        android:fillColor="#10B981"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="6" />
+</vector>

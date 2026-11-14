@@ -67,7 +67,7 @@ object XpCalculator {
 
         val uniqueCorrectQuizIds = quizAttempts
             .asSequence()
-            .filter { it.isCorrect && it.quizId.isNotBlank() }
+            .filter { it.isCorrect && it.quizId.isNotBlank() && !it.quizId.startsWith("story:") }
             .mapTo(HashSet()) { it.quizId }
         val firstCorrectQuizCount = uniqueCorrectQuizIds.size
         val quizXp = firstCorrectQuizCount * XpRules.XP_PER_FIRST_CORRECT_QUIZ

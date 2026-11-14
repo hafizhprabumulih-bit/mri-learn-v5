@@ -1,0 +1,46 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Jas Kardio-MRI Navy di torso Nano (x=335..689, y=580..850) -->
+    <path
+        android:pathData="M342,608 C392,584 632,584 682,608 L704,804 C692,844 612,864 512,864 C412,864 332,844 320,804 Z"
+        android:fillColor="#172554"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12"
+        android:strokeLineJoin="round" />
+    <!-- Kerah dalam cyan -->
+    <path
+        android:pathData="M432,592 L512,676 L592,592 L554,586 L512,630 L470,586 Z"
+        android:fillColor="#06B6D4"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="10"
+        android:strokeLineJoin="round" />
+    <!-- Garis kancing tengah non-logam -->
+    <path
+        android:pathData="M512,676 V856"
+        android:fillColor="#00000000"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="8"
+        android:strokeLineCap="round" />
+    <!-- Saku kiri & ikon gelombang EKG -->
+    <path
+        android:pathData="M560,694 H650 A12,12 0 0 1 662,706 V754 A12,12 0 0 1 650,766 H560 A12,12 0 0 1 548,754 V706 A12,12 0 0 1 560,694 Z"
+        android:fillColor="#0F172A"
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="7" />
+    <path
+        android:pathData="M562,732 H584 L596,708 L612,752 L624,724 H648"
+        android:fillColor="#00000000"
+        android:strokeColor="#22D3EE"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Saku kanan -->
+    <path
+        android:pathData="M372,704 H456 A12,12 0 0 1 468,716 V758 A12,12 0 0 1 456,770 H372 A12,12 0 0 1 360,758 V716 A12,12 0 0 1 372,704 Z"
+        android:fillColor="#1E3A8A"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="8" />
+</vector>

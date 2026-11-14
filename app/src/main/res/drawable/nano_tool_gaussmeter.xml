@@ -1,0 +1,51 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Gaussmeter 5-Gauss di tangan kanan Nano (x=660..895, y=620..885) -->
+    <!-- Probe sensor atas -->
+    <path
+        android:pathData="M778,596 L806,596 L798,668 L770,668 Z"
+        android:fillColor="#38BDF8"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="10"
+        android:strokeLineJoin="round" />
+    <!-- Gelombang deteksi di ujung probe -->
+    <path
+        android:pathData="M750,572 C768,554 816,554 834,572"
+        android:fillColor="#00000000"
+        android:strokeColor="#22D3EE"
+        android:strokeWidth="9"
+        android:strokeLineCap="round" />
+    <!-- Bodi alat Gaussmeter -->
+    <path
+        android:pathData="M710,668 H848 A22,22 0 0 1 870,690 V842 A22,22 0 0 1 848,864 H710 A22,22 0 0 1 688,842 V690 A22,22 0 0 1 710,668 Z"
+        android:fillColor="#F59E0B"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12" />
+    <!-- Layar LCD pembacaan 0.5 mT -->
+    <path
+        android:pathData="M720,694 H838 V768 H720 Z"
+        android:fillColor="#0F172A"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="8" />
+    <path
+        android:pathData="M736,742 L760,722 L784,734 L822,708"
+        android:fillColor="#00000000"
+        android:strokeColor="#34D399"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Tombol indikator -->
+    <path
+        android:pathData="M736,808 A16,16 0 1 0 736.1,808 Z"
+        android:fillColor="#10B981"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="6" />
+    <path
+        android:pathData="M800,808 A16,16 0 1 0 800.1,808 Z"
+        android:fillColor="#EF4444"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="6" />
+</vector>

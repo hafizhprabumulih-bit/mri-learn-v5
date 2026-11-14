@@ -34,12 +34,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.semantics
@@ -69,20 +74,21 @@ fun MapGuideCoachOverlay(
     targetBounds: Rect,
     onNext: () -> Unit,
     onSkip: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    stepBadge: String = "1 DARI 6",
+    title: String = "Mulai dari sini",
+    description: String = "Ketuk kotak modul untuk membuka jalur materinya."
 ) {
     BackHandler(onBack = onSkip)
 
-    val density = LocalDensity.current
-    val paddingPx = with(density) { 8.dp.toPx() }
-    val ringLeft = (targetBounds.left - paddingPx).roundToInt().coerceAtLeast(0)
-    val ringTop = (targetBounds.top - paddingPx).roundToInt().coerceAtLeast(0)
-    val ringWidthDp = with(density) { (targetBounds.width + paddingPx * 2).toDp() }
-    val ringHeightDp = with(density) { (targetBounds.height + paddingPx * 2).toDp() }
+    var overlayOffsetInRoot by remember { mutableStateOf(Offset.Zero) }
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
+            .onGloballyPositioned { coords ->
+                overlayOffsetInRoot = coords.positionInRoot()
+            }
             .background(DeepObsidian.copy(alpha = 0.82f))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -91,6 +97,19 @@ fun MapGuideCoachOverlay(
             )
             .testTag("map_guide_spotlight")
     ) {
+        val density = LocalDensity.current
+        val paddingPx = with(density) { 8.dp.toPx() }
+
+        // Konversi koordinat global targetBounds ke koordinat lokal lapisan overlay
+        val localTargetLeft = targetBounds.left - overlayOffsetInRoot.x
+        val localTargetTop = targetBounds.top - overlayOffsetInRoot.y
+        val localTargetBottom = targetBounds.bottom - overlayOffsetInRoot.y
+
+        val ringLeft = (localTargetLeft - paddingPx).roundToInt().coerceAtLeast(0)
+        val ringTop = (localTargetTop - paddingPx).roundToInt().coerceAtLeast(0)
+        val ringWidthDp = with(density) { (targetBounds.width + paddingPx * 2).toDp() }
+        val ringHeightDp = with(density) { (targetBounds.height + paddingPx * 2).toDp() }
+
         val containerHeightPx = with(density) { maxHeight.toPx() }
         val estimatedCardHeightPx = with(density) { 174.dp.toPx() }
         val gapPx = with(density) { 12.dp.toPx() }
@@ -99,8 +118,8 @@ fun MapGuideCoachOverlay(
 
         // Tempatkan kartu di ATAS cincin sorotan bila posisi target berada di paruh bawah layar
         // sehingga tidak pernah tertutup oleh tab bar bawah.
-        val belowTop = targetBounds.bottom + gapPx
-        val aboveTop = targetBounds.top - estimatedCardHeightPx - gapPx
+        val belowTop = localTargetBottom + gapPx
+        val aboveTop = localTargetTop - estimatedCardHeightPx - gapPx
         val bubbleTopPx = if (belowTop + estimatedCardHeightPx > containerHeightPx - safeBottomMarginPx) {
             aboveTop.coerceIn(safeTopMarginPx, (containerHeightPx - estimatedCardHeightPx - safeBottomMarginPx).coerceAtLeast(safeTopMarginPx))
         } else {
@@ -112,7 +131,7 @@ fun MapGuideCoachOverlay(
             modifier = Modifier
                 .offset { IntOffset(ringLeft, ringTop) }
                 .size(width = ringWidthDp, height = ringHeightDp)
-                .border(3.dp, CyanBright, RoundedCornerShape(28.dp))
+                .border(3.dp, CyanBright, RoundedCornerShape(24.dp))
                 .clickable(onClick = onNext)
         )
 
@@ -131,20 +150,20 @@ fun MapGuideCoachOverlay(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "1 DARI 2",
+                    text = stepBadge,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = DeepObsidian.copy(alpha = 0.75f),
                     letterSpacing = 1.sp
                 )
                 Text(
-                    text = "Mulai dari sini",
+                    text = title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = DeepObsidian
                 )
                 Text(
-                    text = "Ketuk kotak modul untuk membuka jalur materinya.",
+                    text = description,
                     fontSize = 13.sp,
                     color = DeepObsidian.copy(alpha = 0.9f),
                     lineHeight = 18.sp

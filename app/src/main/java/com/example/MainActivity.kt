@@ -10,6 +10,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -164,17 +166,22 @@ class MainActivity : ComponentActivity() {
                 val state by viewModel.uiState.collectAsState()
                 val pathHolder = rememberModulePathStateHolder()
                 var isArcadeOpen by rememberSaveable { mutableStateOf(PathNavigationHints.isArcadeOpen) }
+                var isArcadeLoading by rememberSaveable { mutableStateOf(false) }
+                var isAppOpeningLoading by rememberSaveable { mutableStateOf(true) }
                 LaunchedEffect(isArcadeOpen) {
                     PathNavigationHints.isArcadeOpen = isArcadeOpen
                 }
+                val isOverlayLoading = state.isLoading || isArcadeLoading || isAppOpeningLoading
 
                 // P1: Saat loading, Back mempersingkat loading, bukan menutup aplikasi.
-                androidx.activity.compose.BackHandler(enabled = state.isLoading) {
-                    viewModel.finishLoading()
+                androidx.activity.compose.BackHandler(enabled = isOverlayLoading) {
+                    if (state.isLoading) viewModel.finishLoading()
+                    isArcadeLoading = false
+                    isAppOpeningLoading = false
                 }
 
                 androidx.activity.compose.BackHandler(
-                    enabled = !state.isLoading && !isArcadeOpen && (state.canNavigateBack || state.selectedModule != null || state.currentTab != MainTab.BERANDA)
+                    enabled = !isOverlayLoading && !isArcadeOpen && (state.canNavigateBack || state.selectedModule != null || state.currentTab != MainTab.BERANDA)
                 ) {
                     viewModel.navigateBack()
                 }
@@ -187,8 +194,9 @@ class MainActivity : ComponentActivity() {
                     bottomBar = {
                         // Tampilkan bottom navigation kecuali saat loading atau Focus Reader aktif
                         AnimatedVisibility(
-                            visible = !state.isLoading && !PathNavigationHints.isFocusReaderActive,
-                            enter = fadeIn(animationSpec = tween(durationMillis = 380))
+                            visible = !isOverlayLoading && !PathNavigationHints.isFocusReaderActive,
+                            enter = fadeIn(animationSpec = tween(durationMillis = 380)),
+                            exit = ExitTransition.None
                         ) {
                             val savedCount = state.bookmarkedNodeCodes.size + state.bookmarkedGlossaryTerms.size
                             MriBottomNavigationBar(
@@ -198,38 +206,40 @@ class MainActivity : ComponentActivity() {
                                 savedCount = savedCount,
                                 onTabSelected = { tab ->
                                     isArcadeOpen = false
+                                    isArcadeLoading = false
                                     PathNavigationHints.isArcadeOpen = false
                                     viewModel.selectTab(tab)
                                 },
                                 onArcadeSelected = {
-                                    isArcadeOpen = true
-                                    PathNavigationHints.isArcadeOpen = true
+                                    if (!isArcadeOpen || !isArcadeLoading) {
+                                        if (!isArcadeOpen) {
+                                            isArcadeOpen = true
+                                            PathNavigationHints.isArcadeOpen = true
+                                            isArcadeLoading = true
+                                        }
+                                    }
                                 }
                             )
                         }
                     }
                 ) { innerPadding ->
-                    val baseModifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                    val contentModifier = if (state.isLoading) {
-                        baseModifier.windowInsetsPadding(WindowInsets.navigationBars)
-                    } else {
-                        baseModifier
-                    }
                     Box(
-                        modifier = contentModifier
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding)
                     ) {
                         AnimatedVisibility(
-                            visible = !state.isLoading,
-                            enter = fadeIn(animationSpec = tween(420)) +
-                                scaleIn(initialScale = 0.94f, animationSpec = tween(420, easing = FastOutSlowInEasing))
+                            visible = !isOverlayLoading,
+                            enter = fadeIn(animationSpec = tween(260)) +
+                                scaleIn(initialScale = 0.94f, animationSpec = tween(280, easing = FastOutSlowInEasing)),
+                            exit = ExitTransition.None
                         ) {
                             if (isArcadeOpen) {
                                 ArcadeHubScreen(
                                     characterCustomization = state.characterCustomization,
                                     onBackToHome = {
                                         isArcadeOpen = false
+                                        isArcadeLoading = false
                                         PathNavigationHints.isArcadeOpen = false
                                     }
                                 )
@@ -254,15 +264,24 @@ class MainActivity : ComponentActivity() {
                         }
 
                         AnimatedVisibility(
-                            visible = state.isLoading,
+                            visible = isOverlayLoading,
+                            enter = EnterTransition.None,
                             exit = scaleOut(
-                                targetScale = 0.62f,
-                                animationSpec = tween(durationMillis = 480, easing = FastOutSlowInEasing)
-                            ) + fadeOut(animationSpec = tween(durationMillis = 420))
+                                targetScale = 0.72f,
+                                animationSpec = tween(durationMillis = 260, easing = FastOutSlowInEasing)
+                            ) + fadeOut(animationSpec = tween(durationMillis = 220))
                         ) {
                             LoadingScreen(
-                                customMessage = state.loadingMessage,
-                                onFinished = { viewModel.finishLoading() }
+                                customMessage = when {
+                                    isAppOpeningLoading -> null
+                                    isArcadeLoading -> "Arcade & Minigame MRI"
+                                    else -> state.loadingMessage
+                                },
+                                onFinished = {
+                                    if (state.isLoading) viewModel.finishLoading()
+                                    isArcadeLoading = false
+                                    isAppOpeningLoading = false
+                                }
                             )
                         }
 

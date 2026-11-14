@@ -80,6 +80,8 @@ import com.example.data.CharacterAccentPalette
 import com.example.data.CharacterCatalog
 import com.example.data.CharacterCustomizationState
 import com.example.data.MedicalAvatar
+import com.example.ui.components.MriGlobalAssetImage
+import com.example.ui.components.MriGlobalAssetKey
 import com.example.ui.theme.CharAccentCyan
 import com.example.ui.theme.CharAccentMint
 import com.example.ui.theme.CharActionDarkText
@@ -276,26 +278,44 @@ fun NanoShiftStatusDialog(
                                 shape = RoundedCornerShape(10.dp),
                                 color = CharStageDeep
                             ) {
-                                Text(
-                                    text = "Streak: $studyStreakDays hari",
-                                    fontSize = 11.sp,
-                                    color = if (studyStreakDays > 0) CharAccentMint else CharActionOrange,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    MriGlobalAssetImage(
+                                        assetKey = MriGlobalAssetKey.FIRE_STREAK,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Streak: $studyStreakDays hari",
+                                        fontSize = 11.sp,
+                                        color = if (studyStreakDays > 0) CharAccentMint else CharActionOrange,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                             Surface(
                                 modifier = Modifier.weight(1f),
                                 shape = RoundedCornerShape(10.dp),
                                 color = CharStageDeep
                             ) {
-                                Text(
-                                    text = "Mood Shift: $shiftMood ♥",
-                                    fontSize = 11.sp,
-                                    color = CharAccentCyan,
-                                    fontWeight = FontWeight.Bold,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    MriGlobalAssetImage(
+                                        assetKey = MriGlobalAssetKey.RADIOGRAPHER_CREST,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = "Shift: $shiftMood",
+                                        fontSize = 11.sp,
+                                        color = CharAccentCyan,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
                         }
                     }
@@ -420,7 +440,7 @@ fun NanoSnapshotStudioDialog(
                     }
                 }
 
-                // Pratinjau Kartu ID Radiografer
+                // Pratinjau Kartu ID Radiografer Klinis
                 val themeBorder = when (selectedIdTheme) {
                     "Hologram" -> Color(0xFF3CCDEE)
                     "Film X-Ray" -> Color(0xFF94A3B8)
@@ -429,9 +449,9 @@ fun NanoSnapshotStudioDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1.24f)
-                        .clip(RoundedCornerShape(18.dp))
-                        .border(2.dp, themeBorder, RoundedCornerShape(18.dp))
+                        .aspectRatio(1.16f)
+                        .clip(RoundedCornerShape(20.dp))
+                        .border(2.2.dp, themeBorder, RoundedCornerShape(20.dp))
                 ) {
                     StageBackgroundCanvas(
                         backgroundId = studioBgId,
@@ -447,10 +467,10 @@ fun NanoSnapshotStudioDialog(
                                 .background(
                                     androidx.compose.ui.graphics.Brush.linearGradient(
                                         colors = listOf(
-                                            Color(0x331FB6E8),
-                                            Color(0x1119E6C3),
-                                            Color(0x28FFD166),
-                                            Color(0x221FB6E8)
+                                            Color(0x401FB6E8),
+                                            Color(0x1619E6C3),
+                                            Color(0x2EFFD166),
+                                            Color(0x38071A2B)
                                         )
                                     )
                                 )
@@ -459,80 +479,207 @@ fun NanoSnapshotStudioDialog(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .background(Color(0x66020617))
+                                .background(Color(0x78020617))
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(
+                                    androidx.compose.ui.graphics.Brush.verticalGradient(
+                                        colors = listOf(
+                                            Color(0x22071A2B),
+                                            Color(0x00071A2B),
+                                            Color(0x6604101C)
+                                        )
+                                    )
+                                )
                         )
                     }
+
+                    // Aksen HUD Sudut & Panggung Hologram
+                    androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        val bracketLen = 22.dp.toPx()
+                        val pad = 10.dp.toPx()
+                        val strokeW = 2.dp.toPx()
+                        val hudColor = themeBorder.copy(alpha = 0.65f)
+                        // Top-left
+                        drawLine(hudColor, androidx.compose.ui.geometry.Offset(pad, pad), androidx.compose.ui.geometry.Offset(pad + bracketLen, pad), strokeW)
+                        drawLine(hudColor, androidx.compose.ui.geometry.Offset(pad, pad), androidx.compose.ui.geometry.Offset(pad, pad + bracketLen), strokeW)
+                        // Top-right
+                        drawLine(hudColor, androidx.compose.ui.geometry.Offset(w - pad - bracketLen, pad), androidx.compose.ui.geometry.Offset(w - pad, pad), strokeW)
+                        drawLine(hudColor, androidx.compose.ui.geometry.Offset(w - pad, pad), androidx.compose.ui.geometry.Offset(w - pad, pad + bracketLen), strokeW)
+                        // Pedestal dual ring under Nano
+                        val pedTop = h * 0.61f
+                        val pedH = h * 0.085f
+                        drawOval(
+                            color = Color(0xCC061726),
+                            topLeft = androidx.compose.ui.geometry.Offset(w * 0.18f, pedTop),
+                            size = androidx.compose.ui.geometry.Size(w * 0.64f, pedH)
+                        )
+                        drawOval(
+                            color = themeBorder.copy(alpha = 0.85f),
+                            topLeft = androidx.compose.ui.geometry.Offset(w * 0.18f, pedTop),
+                            size = androidx.compose.ui.geometry.Size(w * 0.64f, pedH),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 2.dp.toPx())
+                        )
+                        drawOval(
+                            color = CharAccentMint.copy(alpha = 0.45f),
+                            topLeft = androidx.compose.ui.geometry.Offset(w * 0.25f, pedTop + pedH * 0.18f),
+                            size = androidx.compose.ui.geometry.Size(w * 0.50f, pedH * 0.64f),
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.2.dp.toPx())
+                        )
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(10.dp),
+                            .padding(12.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
+                        // Baris Header Lencana Pangkat & Penguasaan Kurikulum
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = CharStageDeep.copy(alpha = 0.88f),
-                                border = BorderStroke(1.dp, themeBorder.copy(alpha = 0.85f))
+                                shape = RoundedCornerShape(10.dp),
+                                color = CharStageDeep.copy(alpha = 0.92f),
+                                border = BorderStroke(1.2.dp, themeBorder.copy(alpha = 0.85f))
                             ) {
-                                Text(
-                                    text = "ID · $selectedRank",
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = accentPalette.glowColor,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 9.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    MriGlobalAssetImage(
+                                        assetKey = MriGlobalAssetKey.RADIOGRAPHER_CREST,
+                                        modifier = Modifier.size(14.dp),
+                                        tintAccent = accentPalette.glowColor
+                                    )
+                                    Text(
+                                        text = selectedRank,
+                                        fontSize = 10.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = accentPalette.glowColor
+                                    )
+                                }
                             }
                             Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = CharStageDeep.copy(alpha = 0.82f)
+                                shape = RoundedCornerShape(10.dp),
+                                color = CharStageDeep.copy(alpha = 0.90f),
+                                border = BorderStroke(1.dp, CharAccentMint.copy(alpha = 0.55f))
                             ) {
-                                Text(
-                                    text = "MRI EDU · $masteryPct%",
-                                    fontSize = 9.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = CharTextPrimary,
-                                    modifier = Modifier.padding(horizontal = 7.dp, vertical = 3.dp)
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                ) {
+                                    MriGlobalAssetImage(
+                                        assetKey = MriGlobalAssetKey.SHIELD_5G,
+                                        modifier = Modifier.size(13.dp),
+                                        tintAccent = CharAccentMint
+                                    )
+                                    Text(
+                                        text = "MRI EDU · $completedCount/$totalNodesCount ($masteryPct%)",
+                                        fontSize = 9.5.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = CharTextPrimary
+                                    )
+                                }
                             }
                         }
 
-                        AvatarView(
-                            role = currentAvatar.id,
-                            equipped = studioLoadout,
-                            expression = studioExpression,
-                            modifier = Modifier.size(134.dp)
-                        )
+                        // Avatar Nano di atas panggung
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(top = 2.dp)
+                        ) {
+                            AvatarView(
+                                role = currentAvatar.id,
+                                equipped = studioLoadout,
+                                expression = studioExpression,
+                                modifier = Modifier.size(132.dp)
+                            )
+                        }
 
+                        // Kartu Identitas Klinis Bawah
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            color = CharStageDeep.copy(alpha = 0.88f),
-                            border = BorderStroke(1.dp, themeBorder.copy(alpha = 0.45f))
+                            shape = RoundedCornerShape(14.dp),
+                            color = CharStageDeep.copy(alpha = 0.94f),
+                            border = BorderStroke(1.3.dp, themeBorder.copy(alpha = 0.68f))
                         ) {
                             Column(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(3.dp)
                             ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                ) {
+                                    MriGlobalAssetImage(
+                                        assetKey = MriGlobalAssetKey.CHECK_VERIFIED,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                    Text(
+                                        text = userName.ifBlank { currentAvatar.label },
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = CharTextPrimary,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Surface(
+                                        shape = RoundedCornerShape(6.dp),
+                                        color = themeBorder.copy(alpha = 0.18f),
+                                        border = BorderStroke(0.8.dp, themeBorder.copy(alpha = 0.55f))
+                                    ) {
+                                        Text(
+                                            text = currentAvatar.label.uppercase(),
+                                            fontSize = 8.5.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = themeBorder,
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                        )
+                                    }
+                                }
                                 Text(
-                                    text = userName.ifBlank { currentAvatar.label },
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.ExtraBold,
-                                    color = CharTextPrimary,
+                                    text = specialistRole,
+                                    fontSize = 10.5.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = CharAccentMint,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
                                 )
-                                Text(
-                                    text = "$specialistRole · $favoriteSequence",
-                                    fontSize = 9.5.sp,
-                                    color = CharTextSecondary,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = Color(0xFF061524),
+                                    border = BorderStroke(0.8.dp, CharBorderSlate.copy(alpha = 0.65f))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(5.dp)
+                                    ) {
+                                        MriGlobalAssetImage(
+                                            assetKey = MriGlobalAssetKey.PULSE_WAVE,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Text(
+                                            text = "Sekuens: $favoriteSequence",
+                                            fontSize = 9.5.sp,
+                                            color = CharTextSecondary,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -774,7 +921,7 @@ private fun shareAndSaveProfileCard(
         else -> accentColorArgb
     }
 
-    // Bingkai Kartu
+    // Bingkai Kartu & Sudut HUD
     val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = frameColor
         style = Paint.Style.STROKE
@@ -782,23 +929,28 @@ private fun shareAndSaveProfileCard(
     }
     canvas.drawRoundRect(RectF(16f, 16f, width - 16f, height - 16f), 36f, 36f, borderPaint)
 
-    // Panggung Elips
+    // Panggung Elips Ganda Hologram
     val ovalPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xCC0C2640.toInt()
+        color = 0xD9061726.toInt()
         style = Paint.Style.FILL
     }
-    canvas.drawOval(RectF(170f, 700f, 630f, 748f), ovalPaint)
-    canvas.drawOval(RectF(170f, 700f, 630f, 748f), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    canvas.drawOval(RectF(150f, 684f, 650f, 744f), ovalPaint)
+    canvas.drawOval(RectF(150f, 684f, 650f, 744f), Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = frameColor
         style = Paint.Style.STROKE
-        strokeWidth = 3f
+        strokeWidth = 4f
+    })
+    canvas.drawOval(RectF(210f, 696f, 590f, 732f), Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0x8834D399.toInt()
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f
     })
 
     // Tumpuk seluruh layer PNG Nano sesuai zOrder
     val layers = AvatarLayerRegistry.buildActiveLayers(equipped, expression)
-    val avatarSide = 520f
+    val avatarSide = 510f
     val avatarLeft = (width - avatarSide) / 2f
-    val avatarTop = 210f
+    val avatarTop = 198f
     val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     layers.forEach { layer ->
         val resId = layer.drawableRes ?: return@forEach
@@ -812,39 +964,60 @@ private fun shareAndSaveProfileCard(
     }
 
     // Header Badge Pangkat & Progres
-    val badgeBg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xE60B2239.toInt() }
-    canvas.drawRoundRect(RectF(42f, 44f, 410f, 100f), 18f, 18f, badgeBg)
+    val badgeBg = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xEE081C30.toInt() }
+    val badgeStroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = frameColor
+        style = Paint.Style.STROKE
+        strokeWidth = 2.5f
+    }
+    val rankRect = RectF(42f, 44f, 415f, 102f)
+    canvas.drawRoundRect(rankRect, 20f, 20f, badgeBg)
+    canvas.drawRoundRect(rankRect, 20f, 20f, badgeStroke)
     val textBadge = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = 0xFF22D3EE.toInt()
+        color = 0xFF38BDF8.toInt()
         textSize = 24f
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
-    canvas.drawText(rankBadge.take(22), 62f, 81f, textBadge)
+    canvas.drawText("ID · ${rankBadge.take(20)}", 64f, 81f, textBadge)
 
+    val rightRect = RectF(445f, 44f, width - 42f, 102f)
+    canvas.drawRoundRect(rightRect, 20f, 20f, badgeBg)
+    canvas.drawRoundRect(rightRect, 20f, 20f, Paint(badgeStroke).apply { color = 0xFF34D399.toInt() })
     val pctPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFFFFFFFF.toInt()
-        textSize = 24f
-        textAlign = Paint.Align.RIGHT
+        textSize = 23f
+        textAlign = Paint.Align.CENTER
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
-    canvas.drawText("MRI EDU · $masteryPct%", width - 48f, 82f, pctPaint)
+    canvas.drawText("MRI EDU · $masteryPct%", rightRect.centerX(), 81f, pctPaint)
 
     // Footer Identitas & Sekuens
-    canvas.drawRoundRect(RectF(42f, 780f, width - 42f, height - 42f), 26f, 26f, badgeBg)
+    val footerRect = RectF(42f, 764f, width - 42f, height - 40f)
+    canvas.drawRoundRect(footerRect, 28f, 28f, badgeBg)
+    canvas.drawRoundRect(footerRect, 28f, 28f, badgeStroke)
     val titlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFFFFFFFF.toInt()
-        textSize = 34f
+        textSize = 35f
         textAlign = Paint.Align.CENTER
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
     }
-    canvas.drawText(displayName.take(28), width / 2f, 840f, titlePaint)
+    canvas.drawText(displayName.take(28), width / 2f, 818f, titlePaint)
+    val rolePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = 0xFF34D399.toInt()
+        textSize = 23f
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
+    }
+    canvas.drawText(specialistRole.take(44), width / 2f, 856f, rolePaint)
+
+    val seqRect = RectF(96f, 872f, width - 96f, 908f)
+    canvas.drawRoundRect(seqRect, 14f, 14f, Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFF051220.toInt() })
     val subPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = 0xFFA5C4DF.toInt()
-        textSize = 22f
+        textSize = 20f
         textAlign = Paint.Align.CENTER
     }
-    canvas.drawText(specialistRole.take(44), width / 2f, 878f, subPaint)
-    canvas.drawText("Sekuens: $favoriteSequence".take(48), width / 2f, 906f, subPaint)
+    canvas.drawText("Sekuens: $favoriteSequence".take(48), width / 2f, 897f, subPaint)
 
     try {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

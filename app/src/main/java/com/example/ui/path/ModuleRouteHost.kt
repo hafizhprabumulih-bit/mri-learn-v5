@@ -14,20 +14,25 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import com.example.data.LegacyNodeCodes
 import com.example.data.MriModule
+import com.example.ui.lesson.LessonScreen
 import com.example.ui.module.ModuleDetailScreen
 import com.example.ui.module.ReaderMode
 import com.example.util.ModuleCompletionCelebration
 import com.example.util.PathStateResolver
 import com.example.util.XpCalculator
+import com.example.util.lesson.AttemptRecord
+import com.example.util.lesson.LESSON_FLOW_ENABLED
+import com.example.util.lesson.MasteryStars
 import com.example.viewmodel.MainTab
 import com.example.viewmodel.MriUiState
 import com.example.viewmodel.MriViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
- * Pengarah rute per-modul antara Peta Modul ([ModulePathScreen]), Pembaca Materi ([ModuleDetailScreen]),
- * dan layar selebrasi [NodeCompletedScreen].
- * Menjaga tombol Back bergerak alami (Pembaca -> Peta Modul -> Asal tab) sekaligus mempertahankan
- * pembukaan langsung ke simpul target dari Tersimpan / Glosarium.
+ * Pengarah rute per-modul antara Peta Modul ([ModulePathScreen]), Mode Pelajaran Bertahap ([LessonScreen]),
+ * Pembaca Materi / Baca Cepat ([ModuleDetailScreen]), dan layar selebrasi [NodeCompletedScreen].
  */
 @Composable
 fun ModuleRouteHost(
@@ -38,8 +43,13 @@ fun ModuleRouteHost(
 ) {
     val pathHolder = rememberModulePathStateHolder()
     val skippedCodes = rememberSkippedNodeCodes(pathHolder)
+    val preferredReaderMode by pathHolder.preferredReaderModeFlow.collectAsState(initial = "LESSON")
+    val allowDrafts by pathHolder.allowLessonDraftsFlow.collectAsState(initial = false)
+    val manualReviewNodes by pathHolder.manualReviewNodesFlow.collectAsState(initial = emptySet())
 
     var inReaderMode by rememberSaveable(module.id) { mutableStateOf(false) }
+    var inLessonMode by rememberSaveable(module.id) { mutableStateOf(false) }
+    var isReplayLesson by rememberSaveable(module.id) { mutableStateOf(false) }
     var focusedNodeCode by rememberSaveable(module.id) { mutableStateOf<String?>(null) }
     var openedDirectlyToReader by rememberSaveable(module.id) { mutableStateOf(false) }
 
@@ -49,6 +59,10 @@ fun ModuleRouteHost(
     var showModuleCompleted by rememberSaveable(module.id) { mutableStateOf(false) }
     val celebratedThisSession = remember(module.id) { mutableStateListOf<String>() }
     val celebratedModuleIds by pathHolder.celebratedModuleIdsFlow.collectAsState(initial = emptySet())
+
+    val todayKey = remember {
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    }
 
     LaunchedEffect(state.modulesList, state.isResumeRestored) {
         if (state.isResumeRestored && state.modulesList.isNotEmpty()) {
@@ -74,8 +88,8 @@ fun ModuleRouteHost(
         ReaderMode.ALL_NODES
     }
 
-    LaunchedEffect(activeReaderMode) {
-        PathNavigationHints.isFocusReaderActive = activeReaderMode == ReaderMode.FOCUS_NODE
+    LaunchedEffect(activeReaderMode, inLessonMode) {
+        PathNavigationHints.isFocusReaderActive = inLessonMode || activeReaderMode == ReaderMode.FOCUS_NODE
     }
     DisposableEffect(Unit) {
         onDispose {
@@ -83,7 +97,6 @@ fun ModuleRouteHost(
         }
     }
 
-    // Bersihkan catatan selebrasi jika pengguna membatalkan status selesai agar bisa memicu lagi bila diselesaikan ulang
     LaunchedEffect(state.completedNodeCodes) {
         val currentNormalized = LegacyNodeCodes.normalizeAll(state.completedNodeCodes)
         celebratedThisSession.removeAll { it !in currentNormalized }
@@ -100,22 +113,103 @@ fun ModuleRouteHost(
             }?.code
             openedDirectlyToReader = true
             focusedNodeCode = resolvedCode
+            inLessonMode = false
             inReaderMode = true
             viewModel.setModuleFlashcardMode(false)
         } else if (openAll) {
             openedDirectlyToReader = true
             focusedNodeCode = null
+            inLessonMode = false
             inReaderMode = true
             viewModel.setModuleFlashcardMode(false)
         } else if (openFlash) {
             openedDirectlyToReader = true
             focusedNodeCode = null
+            inLessonMode = false
             inReaderMode = true
             viewModel.setModuleFlashcardMode(true)
         }
     }
 
-    if (inReaderMode) {
+    val handleNodeCompletionCelebration: (String, Set<String>, Set<String>, Boolean) -> Unit = { rawCode, completedBefore, skippedBefore, forceShow ->
+        val normCode = LegacyNodeCodes.normalize(rawCode)
+        val nodeObj = module.nodes.find { LegacyNodeCodes.normalize(it.code) == normCode }
+        if (nodeObj != null && (forceShow || normCode !in celebratedThisSession)) {
+            if (normCode !in celebratedThisSession) {
+                celebratedThisSession.add(normCode)
+            }
+            celebrationEarnedXp = XpCalculator.earnedForNodeCompletion(
+                node = nodeObj,
+                module = module,
+                completedCodesBefore = completedBefore,
+                skippedCodesBefore = skippedBefore
+            )
+            celebrationNodeCode = nodeObj.code
+            if (ModuleCompletionCelebration.shouldShowForReadCompletion(
+                    moduleId = module.id,
+                    module = module,
+                    completedBefore = completedBefore,
+                    skippedBefore = skippedBefore,
+                    justCompletedCode = normCode,
+                    alreadyCelebratedModuleIds = celebratedModuleIds
+                )
+            ) {
+                pendingModuleCelebration = true
+                pathHolder.markModuleCelebratedAsync(module.id)
+            }
+        }
+    }
+
+    val activeLessonNode = remember(inLessonMode, focusedNodeCode, module.nodes) {
+        if (!inLessonMode || focusedNodeCode.isNullOrBlank()) null
+        else {
+            val norm = LegacyNodeCodes.normalize(focusedNodeCode!!)
+            module.nodes.find { LegacyNodeCodes.normalize(it.code) == norm }
+        }
+    }
+
+    if (inLessonMode && activeLessonNode != null) {
+        LessonScreen(
+            module = module,
+            node = activeLessonNode,
+            allQuizzes = state.quizzesList,
+            characterCustomization = state.characterCustomization,
+            pathHolder = pathHolder,
+            isReplayMode = isReplayLesson,
+            onExitLesson = {
+                inLessonMode = false
+                isReplayLesson = false
+                focusedNodeCode = null
+            },
+            onSwitchToQuickRead = {
+                inLessonMode = false
+                isReplayLesson = false
+                inReaderMode = true
+                viewModel.setModuleFlashcardMode(false)
+            },
+            onLessonFinished = {
+                val targetCode = activeLessonNode.code
+                val normTarget = LegacyNodeCodes.normalize(targetCode)
+                val completedBefore = state.completedNodeCodes
+                val skippedBefore = skippedCodes
+                val wasDoneAsRead = (completedBefore.contains(targetCode) || completedBefore.contains(normTarget)) &&
+                    normTarget !in skippedBefore && targetCode !in skippedBefore
+
+                if (!wasDoneAsRead) {
+                    if (normTarget in skippedBefore || targetCode in skippedBefore) {
+                        pathHolder.markNodeReadAsync(targetCode)
+                    } else {
+                        viewModel.markNodeCompleted(targetCode)
+                    }
+                    pathHolder.recordDailyShiftAsync(todayKey, nodesDelta = 1)
+                }
+
+                inLessonMode = false
+                isReplayLesson = false
+                handleNodeCompletionCelebration(targetCode, completedBefore, skippedBefore, true)
+            }
+        )
+    } else if (inReaderMode) {
         ModuleDetailScreen(
             module = module,
             state = state,
@@ -130,6 +224,7 @@ fun ModuleRouteHost(
                 openedDirectlyToReader = false
                 focusedNodeCode = null
                 inReaderMode = false
+                inLessonMode = false
                 viewModel.setModuleFlashcardMode(false)
             },
             onBackOverride = {
@@ -138,38 +233,12 @@ fun ModuleRouteHost(
                 } else {
                     focusedNodeCode = null
                     inReaderMode = false
+                    inLessonMode = false
                     viewModel.setModuleFlashcardMode(false)
                 }
             },
             onNodeJustCompleted = { rawCode, completedBefore, skippedBefore ->
-                val normCode = LegacyNodeCodes.normalize(rawCode)
-                if (normCode !in celebratedThisSession) {
-                    val nodeObj = module.nodes.find {
-                        LegacyNodeCodes.normalize(it.code) == normCode
-                    }
-                    if (nodeObj != null) {
-                        celebratedThisSession.add(normCode)
-                        celebrationEarnedXp = XpCalculator.earnedForNodeCompletion(
-                            node = nodeObj,
-                            module = module,
-                            completedCodesBefore = completedBefore,
-                            skippedCodesBefore = skippedBefore
-                        )
-                        celebrationNodeCode = nodeObj.code
-                        if (ModuleCompletionCelebration.shouldShowForReadCompletion(
-                                moduleId = module.id,
-                                module = module,
-                                completedBefore = completedBefore,
-                                skippedBefore = skippedBefore,
-                                justCompletedCode = normCode,
-                                alreadyCelebratedModuleIds = celebratedModuleIds
-                            )
-                        ) {
-                            pendingModuleCelebration = true
-                            pathHolder.markModuleCelebratedAsync(module.id)
-                        }
-                    }
-                }
+                handleNodeCompletionCelebration(rawCode, completedBefore, skippedBefore, false)
             },
             onMarkSkippedNodeAsRead = { code ->
                 pathHolder.markNodeReadAsync(code)
@@ -182,21 +251,35 @@ fun ModuleRouteHost(
             viewModel = viewModel,
             pathHolder = pathHolder,
             skippedCodes = skippedCodes,
+            onOpenLesson = { code ->
+                val norm = LegacyNodeCodes.normalize(code)
+                val alreadyRead = (state.completedNodeCodes.contains(code) || state.completedNodeCodes.contains(norm)) &&
+                    norm !in skippedCodes && code !in skippedCodes
+                openedDirectlyToReader = false
+                focusedNodeCode = code
+                isReplayLesson = alreadyRead
+                inLessonMode = LESSON_FLOW_ENABLED
+                inReaderMode = !LESSON_FLOW_ENABLED
+                viewModel.setModuleFlashcardMode(false)
+            },
             onOpenNodeReader = { code ->
                 openedDirectlyToReader = false
                 focusedNodeCode = code
+                inLessonMode = false
                 inReaderMode = true
                 viewModel.setModuleFlashcardMode(false)
             },
             onOpenAllNodesReader = {
                 openedDirectlyToReader = false
                 focusedNodeCode = null
+                inLessonMode = false
                 inReaderMode = true
                 viewModel.setModuleFlashcardMode(false)
             },
             onOpenFlashcards = {
                 openedDirectlyToReader = false
                 focusedNodeCode = null
+                inLessonMode = false
                 inReaderMode = true
                 viewModel.setModuleFlashcardMode(true)
             },
@@ -253,6 +336,52 @@ fun ModuleRouteHost(
                 )
             }
 
+            // Perhitungan Bintang Penguasaan & Ulasan Hari Ini (P6)
+            val nodeExtras = remember(normCode, pathHolder.lessonExtras) {
+                pathHolder.lessonExtras.forNode(normCode)
+            }
+            val activeStories = remember(nodeExtras, allowDrafts) {
+                nodeExtras?.stories.orEmpty().filter { it.reviewed || allowDrafts }.take(2)
+            }
+            val firstCheckQuiz = remember(nodeQuizzes, activeStories) {
+                val storyIds = activeStories.mapTo(HashSet()) { it.id }
+                nodeQuizzes.firstOrNull { it.id !in storyIds }
+            }
+            val assessmentIds = remember(activeStories, firstCheckQuiz) {
+                buildList {
+                    activeStories.forEach { add(it.id) }
+                    firstCheckQuiz?.let { add(it.id) }
+                }
+            }
+            val attemptRecords = remember(state.quizAttempts, normCode) {
+                state.quizAttempts
+                    .filter { LegacyNodeCodes.normalize(it.nodeCode) == normCode }
+                    .map { AttemptRecord(quizId = it.quizId, isCorrect = it.isCorrect, answeredAt = it.answeredAt) }
+            }
+            val masteryStars = remember(attemptRecords, assessmentIds) {
+                MasteryStars.stars(attemptRecords, assessmentIds)
+            }
+            val starCaption = remember(masteryStars, activeStories, firstCheckQuiz) {
+                MasteryStars.starCaption(
+                    stars = masteryStars,
+                    hasStory = activeStories.isNotEmpty(),
+                    hasCheck = firstCheckQuiz != null
+                )
+            }
+            val autoNeedsReview = remember(attemptRecords, assessmentIds) {
+                MasteryStars.needsReview(attemptRecords, assessmentIds)
+            }
+            val isManualReview = normCode in manualReviewNodes || autoNeedsReview
+
+            val moduleReadProgress = remember(module, state.completedNodeCodes, skippedCodes, normCode) {
+                val effectiveCompleted = state.completedNodeCodes + normCode
+                ModuleCompletionCelebration.readProgressOf(module, effectiveCompleted, skippedCodes)
+            }
+
+            val recapBullets = remember(nodeExtras) {
+                nodeExtras?.recap.orEmpty()
+            }
+
             NodeCompletedScreen(
                 module = module,
                 completedNode = completedNode,
@@ -263,6 +392,25 @@ fun ModuleRouteHost(
                 nodeCorrectQuizzes = nodeCorrectCount,
                 nodeTotalQuizzes = nodeQuizzes.size,
                 unlockPreview = unlockPreview,
+                characterCustomization = state.characterCustomization,
+                doneNodesInModule = moduleReadProgress.done.coerceAtLeast(1),
+                totalNodesInModule = moduleReadProgress.total.coerceAtLeast(1),
+                masteryStars = masteryStars,
+                starCaptionText = starCaption,
+                recapBullets = recapBullets,
+                addToDailyReviewChecked = isManualReview,
+                onToggleDailyReview = { enabled ->
+                    pathHolder.setNodeManualReviewAsync(normCode, enabled)
+                },
+                onReplayLesson = {
+                    celebrationNodeCode = null
+                    openedDirectlyToReader = false
+                    focusedNodeCode = completedNode.code
+                    isReplayLesson = true
+                    inLessonMode = true
+                    inReaderMode = false
+                    viewModel.setModuleFlashcardMode(false)
+                },
                 onLaunchLab = { labType ->
                     celebrationNodeCode = null
                     viewModel.launchLab(labType)
@@ -275,11 +423,17 @@ fun ModuleRouteHost(
                     } else if (nextNode != null) {
                         openedDirectlyToReader = false
                         focusedNodeCode = nextNode.code
-                        inReaderMode = true
+                        val useLesson = LESSON_FLOW_ENABLED && preferredReaderMode != "QUICK_READ"
+                        val normNext = LegacyNodeCodes.normalize(nextNode.code)
+                        isReplayLesson = (state.completedNodeCodes.contains(nextNode.code) || state.completedNodeCodes.contains(normNext)) &&
+                            normNext !in skippedCodes
+                        inLessonMode = useLesson
+                        inReaderMode = !useLesson
                         viewModel.setModuleFlashcardMode(false)
                     } else {
                         openedDirectlyToReader = false
                         focusedNodeCode = null
+                        inLessonMode = false
                         inReaderMode = false
                     }
                 },
@@ -291,6 +445,7 @@ fun ModuleRouteHost(
                     } else {
                         openedDirectlyToReader = false
                         focusedNodeCode = null
+                        inLessonMode = false
                         inReaderMode = false
                         viewModel.setModuleFlashcardMode(false)
                     }
@@ -336,6 +491,7 @@ fun ModuleRouteHost(
                 showModuleCompleted = false
                 openedDirectlyToReader = false
                 focusedNodeCode = null
+                inLessonMode = false
                 inReaderMode = false
                 viewModel.openModuleDetail(target)
             },
@@ -343,6 +499,7 @@ fun ModuleRouteHost(
                 showModuleCompleted = false
                 openedDirectlyToReader = false
                 focusedNodeCode = null
+                inLessonMode = false
                 inReaderMode = false
                 viewModel.setModuleFlashcardMode(false)
             }

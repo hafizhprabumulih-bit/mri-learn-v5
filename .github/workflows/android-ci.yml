@@ -5,9 +5,18 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build-and-test:
+    name: Build Debug APK & Run Unit Tests
     runs-on: ubuntu-latest
 
     steps:
@@ -63,6 +72,15 @@ jobs:
             gradle testDebugUnitTest assembleDebug --stacktrace
           fi
 
+      - name: Upload Debug APK Artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mri-edu-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Upload unit test reports
         if: always()
         uses: actions/upload-artifact@v4
@@ -70,3 +88,23 @@ jobs:
           name: unit-test-reports
           path: app/build/reports/tests/
           if-no-files-found: warn
+          retention-days: 14
+
+      - name: Write CI Run Summary
+        if: always()
+        run: |
+          echo "## 🚀 MRI EDU - Android CI Build Report" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status:** ${{ job.status == 'success' && '✅ SUCCESS' || '❌ FAILED' }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Branch:** \`${{ github.ref_name }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** \`${{ github.sha }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "### 📦 Unduh File APK:" >> "$GITHUB_STEP_SUMMARY"
+            echo "1. Gulir ke bagian **Artifacts** di bawah ringkasan run ini." >> "$GITHUB_STEP_SUMMARY"
+            echo "2. Klik artefak **\`mri-edu-debug-apk\`** untuk mengunduh file zip." >> "$GITHUB_STEP_SUMMARY"
+            echo "3. Ekstrak file dan pasang file **\`app-debug.apk\`** ke ponsel atau emulator Android." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ⚠️ Build Gagal:" >> "$GITHUB_STEP_SUMMARY"
+            echo "Periksa tab log di atas atau unduh artefak **\`unit-test-reports\`** untuk melihat laporan pengujian gagal." >> "$GITHUB_STEP_SUMMARY"
+          fi

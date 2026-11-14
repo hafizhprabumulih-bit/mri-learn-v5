@@ -101,7 +101,16 @@ object MriArcadeEngine {
         DefenseTemplate("Kursi Roda Besi", "KURSI", "KURSI_RODA_BESI"),
         DefenseTemplate("Stetoskop Baja", "STETO", "STETOSKOP"),
         DefenseTemplate("Jam Mekanik", "JAM", "JAM_MEKANIK"),
-        DefenseTemplate("Pinset Feromagnetik", "PINSET", "PINSET")
+        DefenseTemplate("Pinset Feromagnetik", "PINSET", "PINSET"),
+        DefenseTemplate("Ponsel Logam", "PONSEL", "PONSEL_LOGAM"),
+        DefenseTemplate("Tabung APAR", "APAR", "TABUNG_PEMADAM"),
+        DefenseTemplate("Kacamata Logam", "KACAMATA", "KACA_MATA_LOGAM"),
+        DefenseTemplate("Pompa Non-MR", "POMPA", "POMPA_INFUS_BIASA"),
+        DefenseTemplate("Botol Baja", "BOTOL", "BOTOL_MINUM_LOGAM"),
+        DefenseTemplate("Skalpel Baja", "SKALPEL", "PISAU_BEDAH_BAJA"),
+        DefenseTemplate("Palu Refleks", "PALU", "PALU_REFLEKS_BESI"),
+        DefenseTemplate("Cincin Logam", "CINCIN", "CINCIN_FEROMAGNETIK"),
+        DefenseTemplate("Lanyard Klip", "LANYARD", "KARTU_AKSES_MAGNET")
     )
 
     private val safeTemplates = listOf(
@@ -109,7 +118,11 @@ object MriArcadeEngine {
         DefenseTemplate("Vial Kontras", "VIAL", "VIAL_KONTRAS"),
         DefenseTemplate("Gaun Katun", "GAUN", "GAUN_KATUN"),
         DefenseTemplate("Earplug Busa", "EARPLUG", "EARPLUG"),
-        DefenseTemplate("Phantom ACR", "PHANTOM", "PHANTOM_ACR")
+        DefenseTemplate("Phantom ACR", "PHANTOM", "PHANTOM_ACR"),
+        DefenseTemplate("Sandbag Non-Mag", "SANDBAG", "SANDBAG_NONMAG"),
+        DefenseTemplate("Selimut Katun", "SELIMUT", "SELIMUT_KATUN"),
+        DefenseTemplate("Headset Udara", "HEADSET", "HEADSET_PNEUMATIK"),
+        DefenseTemplate("Masker Polimer", "MASKER", "MASKER_OKSIGEN_PLASTIK")
     )
 
     // Variasi pola sekuens agar ritme Spin Echo & TSE dinamis & musikal
@@ -137,6 +150,21 @@ object MriArcadeEngine {
             "gaun" in labelLower -> "GAUN_KATUN"
             "earplug" in labelLower -> "EARPLUG"
             "phantom" in labelLower -> "PHANTOM_ACR"
+            "ponsel" in labelLower || "hp" in labelLower -> "PONSEL_LOGAM"
+            "apar" in labelLower || "pemadam" in labelLower -> "TABUNG_PEMADAM"
+            "kacamata" in labelLower -> "KACA_MATA_LOGAM"
+            "pompa" in labelLower || "infus" in labelLower -> "POMPA_INFUS_BIASA"
+            "botol" in labelLower || "termos" in labelLower -> "BOTOL_MINUM_LOGAM"
+            "sandbag" in labelLower || "pasir" in labelLower -> "SANDBAG_NONMAG"
+            "selimut" in labelLower -> "SELIMUT_KATUN"
+            "aluminium" in labelLower || "alu" in labelLower -> "TABUNG_O2_ALU"
+            "titanium" in labelLower || "implan" in labelLower -> "IMPLAN_TITANIUM"
+            "headset" in labelLower || "pneumatik" in labelLower -> "HEADSET_PNEUMATIK"
+            "masker" in labelLower -> "MASKER_OKSIGEN_PLASTIK"
+            "skalpel" in labelLower || "pisau" in labelLower -> "PISAU_BEDAH_BAJA"
+            "palu" in labelLower || "refleks" in labelLower -> "PALU_REFLEKS_BESI"
+            "cincin" in labelLower -> "CINCIN_FEROMAGNETIK"
+            "lanyard" in labelLower || "akses" in labelLower -> "KARTU_AKSES_MAGNET"
             else -> "FALLBACK_MRI"
         }
     }

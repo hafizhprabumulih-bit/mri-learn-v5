@@ -82,17 +82,32 @@ object MriMinigameEngine {
         ScreeningItem("scr_gd", "Vial Kontras Gadolinium Kelasi", "VIAL", SafetyClass.MR_SAFE, true, "Cairan kontras non-feromagnetik aman disiapkan sesuai protokol.", "VIAL_KONTRAS"),
         ScreeningItem("scr_phantom", "Phantom QA ACR Plastik", "PHANTOM", SafetyClass.MR_SAFE, true, "Wadah akrilik berisi larutan uji standar aman untuk kalibrasi bore.", "PHANTOM_ACR"),
         ScreeningItem("scr_pacer_cond", "Implan MR Conditional (Syarat Terpenuhi)", "COND", SafetyClass.MR_CONDITIONAL, true, "Aman masuk hanya bila seluruh syarat B0 & SAR telah diverifikasi.", "STETOSKOP"),
-        ScreeningItem("scr_stent_cond", "Stent Koroner MR Conditional (Terverifikasi)", "STENT", SafetyClass.MR_CONDITIONAL, true, "Diizinkan setelah verifikasi tipe implan dan batas kekuatan magnet.", "STENT_COND")
+        ScreeningItem("scr_stent_cond", "Stent Koroner MR Conditional (Terverifikasi)", "STENT", SafetyClass.MR_CONDITIONAL, true, "Diizinkan setelah verifikasi tipe implan dan batas kekuatan magnet.", "STENT_COND"),
+        ScreeningItem("scr_phone", "Ponsel & Smartwatch Pribadi", "PONSEL", SafetyClass.MR_UNSAFE, false, "Mengandung komponen feromagnetik & baterai yang tertarik B0 serta rusak oleh RF.", "PONSEL_LOGAM"),
+        ScreeningItem("scr_apar", "Tabung Pemadam Api (APAR) Baja", "APAR", SafetyClass.MR_UNSAFE, false, "Tabung baja bertekanan sangat berbahaya jika tertarik ke bore magnet 1,5T–3T.", "TABUNG_PEMADAM"),
+        ScreeningItem("scr_glasses", "Kacamata Bingkai Logam", "KACAMATA", SafetyClass.MR_UNSAFE, false, "Bingkai logam bisa tertarik B0 dan memicu artefak atau panas lokal.", "KACA_MATA_LOGAM"),
+        ScreeningItem("scr_infusion", "Pompa Infus Standar Non-MR", "POMPA", SafetyClass.MR_UNSAFE, false, "Harus ditinggalkan di Zona III; hanya pompa khusus MR Conditional yang boleh masuk.", "POMPA_INFUS_BIASA"),
+        ScreeningItem("scr_bottle", "Botol Termos Baja Tahan Karat", "BOTOL", SafetyClass.MR_UNSAFE, false, "Botol logam berisiko memicu gaya tarik magnetik dan distorsi citra.", "BOTOL_MINUM_LOGAM"),
+        ScreeningItem("scr_sandbag", "Bantalan Pasir Imobilisasi Non-Magnetik", "SANDBAG", SafetyClass.MR_SAFE, true, "Pasir silika terbungkus vinil bebas logam aman membantu imobilisasi pasien.", "SANDBAG_NONMAG"),
+        ScreeningItem("scr_blanket", "Selimut Katun Polos Rumah Sakit", "SELIMUT", SafetyClass.MR_SAFE, true, "Katun polos tanpa kancing logam aman menjaga kenyamanan pasien di bore.", "SELIMUT_KATUN"),
+        ScreeningItem("scr_o2_alu", "Tabung O₂ Aluminium MR Conditional", "O2_ALU", SafetyClass.MR_CONDITIONAL, true, "Tabung aluminium khusus berlabel MR Conditional aman dengan jarak batas sesuai protokol.", "TABUNG_O2_ALU"),
+        ScreeningItem("scr_ti_plate", "Pelat & Sekrup Ortopedi Titanium", "TITANIUM", SafetyClass.MR_CONDITIONAL, true, "Implan titanium non-feromagnetik MR Conditional aman bila syarat SAR & B0 dipenuhi.", "IMPLAN_TITANIUM"),
+        ScreeningItem("scr_pneumatic", "Headset Pneumatik Akustik Non-Logam", "HEADSET", SafetyClass.MR_SAFE, true, "Tabung udara plastik tanpa kumparan logam aman dan meredam bising gradien.", "HEADSET_PNEUMATIK"),
+        ScreeningItem("scr_o2_mask", "Masker & Selang Oksigen Polimer", "MASKER", SafetyClass.MR_SAFE, true, "Masker plastik murni bebas kawat hidung logam aman untuk pasien di Zona IV.", "MASKER_OKSIGEN_PLASTIK"),
+        ScreeningItem("scr_scalpel", "Skalpel Bedah Baja Karbon", "SKALPEL", SafetyClass.MR_UNSAFE, false, "Bilah baja feromagnetik sangat tajam berisiko menjadi proyektil fatal di bore B0.", "PISAU_BEDAH_BAJA"),
+        ScreeningItem("scr_hammer", "Palu Refleks Batang Besi", "PALU", SafetyClass.MR_UNSAFE, false, "Batang besi feromagnetik akan tertarik keras ke isosenter magnet.", "PALU_REFLEKS_BESI"),
+        ScreeningItem("scr_ring", "Cincin & Perhiasan Feromagnetik", "CINCIN", SafetyClass.MR_UNSAFE, false, "Perhiasan logam berisiko memicu tarikan magnetik, artefak, dan luka bakar RF.", "CINCIN_FEROMAGNETIK"),
+        ScreeningItem("scr_lanyard", "Lanyard Klip Besi & Kartu Magnetik", "LANYARD", SafetyClass.MR_UNSAFE, false, "Klip penjepit besi bisa terlempar dan strip magnetik kartu langsung terhapus.", "KARTU_AKSES_MAGNET")
     )
 
     val larmorChallenges: List<LarmorChallenge> = listOf(
-        LarmorChallenge("lar_05", "0,5 Tesla (Low-Field)", "21,29 MHz", 0.28f, 0.88f),
-        LarmorChallenge("lar_15", "1,5 Tesla (Klinis Standar)", "63,87 MHz", 0.52f, 1.08f),
-        LarmorChallenge("lar_30", "3,0 Tesla (High-Field)", "127,74 MHz", 0.74f, 1.28f),
-        LarmorChallenge("lar_70", "7,0 Tesla (Ultra-High)", "298,06 MHz", 0.86f, 1.48f),
-        LarmorChallenge("lar_15b", "1,5 T + Gradien +Gz", "64,12 MHz", 0.42f, 1.18f),
-        LarmorChallenge("lar_30b", "3,0 T + Gradien −Gz", "127,30 MHz", 0.63f, 1.38f),
-        LarmorChallenge("lar_02", "0,2 Tesla (Open MRI)", "8,52 MHz", 0.19f, 0.96f)
+        LarmorChallenge("lar_02", "0,2 Tesla (Open MRI)", "8,52 MHz", 0.22f, 0.60f),
+        LarmorChallenge("lar_05", "0,5 Tesla (Low-Field)", "21,29 MHz", 0.35f, 0.72f),
+        LarmorChallenge("lar_15", "1,5 Tesla (Klinis Standar)", "63,87 MHz", 0.52f, 0.85f),
+        LarmorChallenge("lar_15b", "1,5 T + Gradien +Gz", "64,12 MHz", 0.44f, 0.95f),
+        LarmorChallenge("lar_30", "3,0 Tesla (High-Field)", "127,74 MHz", 0.72f, 1.10f),
+        LarmorChallenge("lar_30b", "3,0 T + Gradien −Gz", "127,30 MHz", 0.62f, 1.20f),
+        LarmorChallenge("lar_70", "7,0 Tesla (Ultra-High)", "298,06 MHz", 0.84f, 1.35f)
     )
 
     val contrastArtifactBank: List<ContrastArtifactQuestion> = listOf(
@@ -224,8 +239,9 @@ object MriMinigameEngine {
         combo: Int
     ): Float {
         if (deltaSec <= 0f) return currentPhase
-        val comboBoost = 1f + (combo.coerceIn(0, 6) * 0.08f)
-        val halfCyclesPerSec = 0.72f * speedMultiplier.coerceAtLeast(0.4f) * comboBoost
+        // Combo boost bertingkat halus: awal tenang, lalu bertahap lebih cepat saat combo bertambah
+        val comboBoost = 1f + (combo.coerceIn(0, 8) * 0.10f)
+        val halfCyclesPerSec = 0.44f * speedMultiplier.coerceAtLeast(0.35f) * comboBoost
         return (currentPhase + deltaSec.coerceAtMost(0.05f) * halfCyclesPerSec) % 2f
     }
 

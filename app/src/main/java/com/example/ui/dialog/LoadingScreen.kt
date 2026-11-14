@@ -17,13 +17,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
@@ -82,30 +85,35 @@ fun LoadingScreen(
         }
     }
 
-    // B-20: Gunakan customMessage dan sessionKey sebagai kunci LaunchedEffect agar timer selalu di-reset
-    val sessionKey = rememberSaveable(customMessage) { System.nanoTime() }
+    // Durasi 2,4 detik (2400 ms) terkalibrasi halus; langsung panggil onFinished begitu menyentuh 100%
+    val sessionKey = remember(customMessage) { System.nanoTime() }
     LaunchedEffect(customMessage, sessionKey) {
         progress = 0f
-        val startTime = System.currentTimeMillis()
-        val duration = 5100f // 5.1 seconds exactly matching user request & HTML logic (B-01 sengaja dipertahankan)
-        while (true) {
-            val elapsed = System.currentTimeMillis() - startTime
-            val p = (elapsed / duration).coerceIn(0f, 1f)
-            // Ease out quad matching HTML e = 1 - Math.pow(1 - p, 2)
-            val eased = 1f - (1f - p) * (1f - p)
-            progress = eased
-            val idx = (p * msgs.size).toInt().coerceIn(0, msgs.size - 1)
-            currentStatusMsg = msgs[idx]
-            if (p >= 1f) {
-                delay(100) // Brief hold at 100%
-                onFinished?.invoke()
-                break
+        var startNs = 0L
+        val durationMs = 2400f
+        var completed = false
+        while (!completed) {
+            androidx.compose.runtime.withFrameNanos { frameNs ->
+                if (startNs == 0L) startNs = frameNs
+                val elapsedMs = (frameNs - startNs) / 1_000_000f
+                val p = (elapsedMs / durationMs).coerceIn(0f, 1f)
+                val smoothStep = p * p * (3f - 2f * p)
+                val eased = p * 0.78f + smoothStep * 0.22f
+                val idx = (p * msgs.size).toInt().coerceIn(0, msgs.size - 1)
+                currentStatusMsg = msgs[idx]
+                if (p >= 1f) {
+                    progress = 1f
+                    currentStatusMsg = msgs.last()
+                    completed = true
+                } else {
+                    progress = eased
+                }
             }
-            delay(16)
         }
+        onFinished?.invoke()
     }
 
-    val percentage = (progress * 100).toInt().coerceIn(0, 100)
+    val percentage = if (progress >= 1f) 100 else (progress * 100f).toInt().coerceIn(0, 99)
 
     val infiniteTransition = rememberInfiniteTransition(label = "loading_anim")
 
@@ -192,7 +200,9 @@ fun LoadingScreen(
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center,
-            modifier = Modifier.padding(24.dp)
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.navigationBars)
+                .padding(24.dp)
         ) {
             // Stage containing wave rings, spin arc, and MRI logo all moving in unison (proporsi seimbang)
             Box(

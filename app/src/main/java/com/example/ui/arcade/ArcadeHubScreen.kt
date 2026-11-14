@@ -264,7 +264,6 @@ private fun ArcadeHubMenu(
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text("Arcade & Minigame Nano", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
-                Text("Latihan interaktif fisika & keselamatan MRI", fontSize = 11.5.sp, color = TextSecondary)
             }
         }
 

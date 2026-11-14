@@ -52,6 +52,8 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -184,20 +186,27 @@ fun PathNodeButton(
     val colorScheme = MaterialTheme.colorScheme
     val haptics = com.example.util.rememberMriHaptics()
     val reduceMotion = rememberReduceMotion()
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
+    var isTapAnimating by remember { androidx.compose.runtime.mutableStateOf(false) }
 
     val baseSize = if (kind == NodeKind.MODUL) 88.dp else 82.dp
     val shadowDepth = 10.dp
-    val pressTravel = 5.dp
+    val pressTravel = 6.dp
     val ringPadding = 6.dp
     // Semua simpul berbentuk tombol 3D sudut membulat seragam ala toggle "M01"
     val shape = RoundedCornerShape(22.dp)
 
     val pressOffset by animateDpAsState(
-        targetValue = if (isPressed) pressTravel else 0.dp,
-        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 90),
+        targetValue = if (isPressed || isTapAnimating) pressTravel else 0.dp,
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 75),
         label = "pathNodePress"
+    )
+    val pressScale by animateFloatAsState(
+        targetValue = if (isPressed || isTapAnimating) 0.94f else 1f,
+        animationSpec = tween(durationMillis = if (reduceMotion) 0 else 75),
+        label = "pathNodePressScale"
     )
 
     val ringPulseAlpha = if (status == NodeStatus.CURRENT && !reduceMotion) {
@@ -372,7 +381,17 @@ fun PathNodeButton(
                     role = Role.Button,
                     onClick = {
                         haptics.lightToggle()
-                        onClick()
+                        if (reduceMotion) {
+                            onClick()
+                        } else if (!isTapAnimating) {
+                            scope.launch {
+                                isTapAnimating = true
+                                kotlinx.coroutines.delay(95L)
+                                isTapAnimating = false
+                                kotlinx.coroutines.delay(65L)
+                                onClick()
+                            }
+                        }
                     }
                 )
         ) {

@@ -102,6 +102,7 @@ fun SpinEchoRhythmScreen(
     var isPaused by remember { mutableStateOf(false) }
     var reported by remember { mutableStateOf(false) }
     var activeLaneFlash by remember { mutableStateOf<Int?>(null) }
+    var lastHitPopup by remember { mutableStateOf<Pair<String, Boolean>?>(null) }
     var nanoTipTap by remember { mutableIntStateOf(0) }
     var customNanoTip by remember { mutableStateOf<String?>(null) }
 
@@ -111,10 +112,11 @@ fun SpinEchoRhythmScreen(
         label = "rhythm_nano_bounce"
     )
 
-    LaunchedEffect(activeLaneFlash) {
-        if (activeLaneFlash != null) {
-            delay(160L)
+    LaunchedEffect(activeLaneFlash, lastHitPopup) {
+        if (activeLaneFlash != null || lastHitPopup != null) {
+            delay(300L)
             activeLaneFlash = null
+            lastHitPopup = null
         }
     }
 
@@ -374,8 +376,17 @@ fun SpinEchoRhythmScreen(
                                     1 -> PulseBeatKind.REFOCUS_180
                                     else -> PulseBeatKind.ECHO_READ
                                 }
+                                val prevScore = gameState.score
                                 val next = MriArcadeEngine.tapRhythmLane(gameState, preferred)
-                                if (next.combo > gameState.combo) haptics.mediumAction() else haptics.warningBuzz()
+                                if (next.combo > gameState.combo) {
+                                    haptics.mediumAction()
+                                    val delta = next.score - prevScore
+                                    val tag = if (next.lastJudgment.startsWith("PERFECT")) "PERFECT +$delta" else "GOOD +$delta"
+                                    lastHitPopup = tag to true
+                                } else {
+                                    haptics.warningBuzz()
+                                    lastHitPopup = "MELESET" to false
+                                }
                                 gameState = next
                             }
                         }
@@ -438,10 +449,18 @@ fun SpinEchoRhythmScreen(
                     )
                     drawCircle(
                         color = col.copy(alpha = if (isFlashing) 0.95f else 0.65f),
-                        radius = if (isFlashing) 19.dp.toPx() else 16.dp.toPx(),
+                        radius = if (isFlashing) 22.dp.toPx() else 16.dp.toPx(),
                         center = Offset(cx, targetY),
-                        style = Stroke(width = if (isFlashing) 4f else 3f)
+                        style = Stroke(width = if (isFlashing) 4.5f else 3f)
                     )
+                    if (isFlashing) {
+                        drawCircle(
+                            color = Color.White.copy(alpha = 0.5f),
+                            radius = 30.dp.toPx(),
+                            center = Offset(cx, targetY),
+                            style = Stroke(width = 2.5f)
+                        )
+                    }
                 }
 
                 drawLine(
@@ -477,6 +496,25 @@ fun SpinEchoRhythmScreen(
                         topLeft = Offset(noteLeft + 6.dp.toPx(), y - 12.dp.toPx()),
                         size = Size((noteW - 12.dp.toPx()).coerceAtLeast(4f), 6.dp.toPx()),
                         cornerRadius = CornerRadius(4f, 4f)
+                    )
+                }
+            }
+
+            lastHitPopup?.let { (label, good) ->
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(12.dp),
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (good) EmeraldSuccess else RoseDanger,
+                    shadowElevation = 6.dp
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 11.5.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = if (good) DeepObsidian else Color.White,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                     )
                 }
             }
@@ -589,8 +627,17 @@ fun SpinEchoRhythmScreen(
                     onClick = {
                         if (!isPaused && !gameState.isGameOver) {
                             activeLaneFlash = idx
+                            val prevScore = gameState.score
                             val next = MriArcadeEngine.tapRhythmLane(gameState, kind)
-                            if (next.combo > gameState.combo) haptics.mediumAction() else haptics.warningBuzz()
+                            if (next.combo > gameState.combo) {
+                                haptics.mediumAction()
+                                val delta = next.score - prevScore
+                                val tag = if (next.lastJudgment.startsWith("PERFECT")) "PERFECT +$delta" else "GOOD +$delta"
+                                lastHitPopup = tag to true
+                            } else {
+                                haptics.warningBuzz()
+                                lastHitPopup = "MELESET" to false
+                            }
                             gameState = next
                         }
                     },

@@ -79,6 +79,15 @@ class UserDataRepository(
         val ARCADE_HIGH_SCORE_DEFENSE = intPreferencesKey("arcade_high_score_defense")
         val ARCADE_HIGH_SCORE_RHYTHM = intPreferencesKey("arcade_high_score_rhythm")
         val ARCADE_HIGHEST_RANK = stringPreferencesKey("arcade_highest_rank")
+        val PREFERRED_READER_MODE = stringPreferencesKey("preferred_reader_mode")
+        val LESSON_TAP_HINT_COUNT = intPreferencesKey("lesson_tap_hint_count")
+        val MANUAL_REVIEW_NODES = stringSetPreferencesKey("manual_review_nodes")
+        val ALLOW_LESSON_DRAFTS = booleanPreferencesKey("allow_lesson_drafts")
+
+        fun lessonStepKey(nodeCode: String): Preferences.Key<Int> {
+            val norm = LegacyNodeCodes.normalize(nodeCode.trim())
+            return intPreferencesKey("lesson_step_$norm")
+        }
     }
 
     suspend fun normalizeLegacyNodeCodesIfNeeded() {
@@ -156,6 +165,102 @@ class UserDataRepository(
             val current = preferences[PreferencesKeys.TRIED_LAB_NODES] ?: emptySet()
             preferences[PreferencesKeys.TRIED_LAB_NODES] = current + norm
         }
+    }
+
+    val preferredReaderModeFlow: Flow<String> = dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.PREFERRED_READER_MODE] ?: "LESSON"
+    }
+
+    suspend fun setPreferredReaderMode(mode: String) {
+        dataStore.edit { prefs ->
+            prefs[PreferencesKeys.PREFERRED_READER_MODE] = mode
+        }
+    }
+
+    val lessonTapHintCountFlow: Flow<Int> = dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.LESSON_TAP_HINT_COUNT] ?: 0
+    }
+
+    suspend fun incrementLessonTapHintCount() {
+        dataStore.edit { prefs ->
+            val cur = prefs[PreferencesKeys.LESSON_TAP_HINT_COUNT] ?: 0
+            if (cur < 10) {
+                prefs[PreferencesKeys.LESSON_TAP_HINT_COUNT] = cur + 1
+            }
+        }
+    }
+
+    val allowLessonDraftsFlow: Flow<Boolean> = dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.ALLOW_LESSON_DRAFTS] ?: false
+    }
+
+    suspend fun setAllowLessonDrafts(allow: Boolean) {
+        dataStore.edit { prefs ->
+            prefs[PreferencesKeys.ALLOW_LESSON_DRAFTS] = allow
+        }
+    }
+
+    fun observeSavedLessonStep(nodeCode: String): Flow<Int> {
+        val key = PreferencesKeys.lessonStepKey(nodeCode)
+        return dataStore.data.map { prefs -> prefs[key] ?: 0 }
+    }
+
+    suspend fun saveLessonStep(nodeCode: String, stepIndex: Int) {
+        val norm = LegacyNodeCodes.normalize(nodeCode.trim())
+        if (norm.isBlank()) return
+        val key = PreferencesKeys.lessonStepKey(norm)
+        dataStore.edit { prefs ->
+            if (stepIndex <= 0) {
+                prefs.remove(key)
+            } else {
+                prefs[key] = stepIndex
+            }
+        }
+    }
+
+    suspend fun clearLessonStep(nodeCode: String) {
+        val norm = LegacyNodeCodes.normalize(nodeCode.trim())
+        if (norm.isBlank()) return
+        val key = PreferencesKeys.lessonStepKey(norm)
+        dataStore.edit { prefs ->
+            prefs.remove(key)
+        }
+    }
+
+    val manualReviewNodesFlow: Flow<Set<String>> = dataStore.data.map { prefs ->
+        prefs[PreferencesKeys.MANUAL_REVIEW_NODES] ?: emptySet()
+    }
+
+    suspend fun setNodeManualReview(nodeCode: String, enabled: Boolean) {
+        val norm = LegacyNodeCodes.normalize(nodeCode.trim())
+        if (norm.isBlank()) return
+        dataStore.edit { prefs ->
+            val cur = prefs[PreferencesKeys.MANUAL_REVIEW_NODES] ?: emptySet()
+            prefs[PreferencesKeys.MANUAL_REVIEW_NODES] = if (enabled) cur + norm else cur - norm
+        }
+    }
+
+    suspend fun recordLessonQuizAttempt(
+        quizId: String,
+        rawNodeCode: String,
+        explicitModuleId: String? = null,
+        selectedIndex: Int,
+        isCorrect: Boolean
+    ) {
+        val normCode = LegacyNodeCodes.normalize(rawNodeCode.trim())
+        if (quizId.isBlank() || normCode.isBlank()) return
+        val resolvedModuleId = explicitModuleId?.takeIf { it.isNotBlank() } ?: resolveModuleIdFromCode(normCode)
+        database.quizAttemptDao().insert(
+            QuizAttemptEntity(
+                id = 0,
+                quizId = quizId.trim(),
+                nodeCode = normCode,
+                moduleId = resolvedModuleId,
+                selectedIndex = selectedIndex,
+                isCorrect = isCorrect,
+                answeredAt = System.currentTimeMillis()
+            )
+        )
     }
 
     fun observeDailyShiftCounts(todayKey: String): Flow<Triple<Int, Int, Int>> = dataStore.data.map { prefs ->

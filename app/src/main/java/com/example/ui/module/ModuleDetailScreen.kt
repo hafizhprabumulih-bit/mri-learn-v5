@@ -752,6 +752,136 @@ private fun FocusNodeReader(
     val todayKey = remember {
         java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
     }
+    var showQuickReadGateDialog by rememberSaveable(node.code) { mutableStateOf(false) }
+    var quickReadSelectedOption by rememberSaveable(node.code) { mutableStateOf<Int?>(null) }
+
+    val completeQuickReadNode = {
+        val snapshotCompleted = state.completedNodeCodes
+        val snapshotSkipped = skippedNodeCodes
+        if (isSkipped) {
+            onMarkSkippedNodeAsRead?.invoke(node.code)
+        } else {
+            viewModel.markNodeCompleted(node.code)
+        }
+        scope.launch { pathHolder.recordDailyShift(todayKey, nodesDelta = 1) }
+        if (onNodeJustCompleted != null) {
+            onNodeJustCompleted(node.code, snapshotCompleted, snapshotSkipped)
+        } else if (nextPathNode != null && onSelectFocusedNode != null) {
+            onSelectFocusedNode(nextPathNode.node.code)
+        } else {
+            onReturnToPath?.invoke()
+        }
+    }
+
+    if (showQuickReadGateDialog) {
+        val gateQuiz = nodeQuizzes.firstOrNull()
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {
+                showQuickReadGateDialog = false
+                quickReadSelectedOption = null
+            },
+            containerColor = DarkNavySlate,
+            title = {
+                Text(
+                    text = if (gateQuiz != null) "Cek Singkat · ${NodeDisplay.shortCode(node.code)}" else "Tandai simpul ini selesai?",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = TextPrimary
+                )
+            },
+            text = {
+                if (gateQuiz != null) {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            text = gateQuiz.question,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TextPrimary,
+                            lineHeight = 20.sp
+                        )
+                        gateQuiz.options.forEachIndexed { idx, opt ->
+                            val picked = quickReadSelectedOption == idx
+                            val isCorrect = idx == gateQuiz.correctIndex
+                            val borderCol = when {
+                                quickReadSelectedOption != null && isCorrect -> EmeraldSuccess
+                                picked && !isCorrect -> AmberWarning
+                                else -> CardSlateBorder
+                            }
+                            Surface(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .defaultMinSize(minHeight = 48.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable(enabled = quickReadSelectedOption == null) {
+                                        quickReadSelectedOption = idx
+                                        pathHolder.recordLessonQuizAttemptAsync(
+                                            quizId = gateQuiz.id,
+                                            nodeCode = normalizedCode,
+                                            moduleId = module.id,
+                                            selectedIndex = idx,
+                                            isCorrect = isCorrect
+                                        )
+                                    }
+                                    .testTag("quick_read_quiz_option_$idx"),
+                                shape = RoundedCornerShape(12.dp),
+                                color = if (picked) CyanPrimary.copy(alpha = 0.14f) else DeepObsidian,
+                                border = androidx.compose.foundation.BorderStroke(1.2.dp, borderCol)
+                            ) {
+                                Text(
+                                    text = opt,
+                                    fontSize = 13.sp,
+                                    color = TextPrimary,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                                )
+                            }
+                        }
+                        if (quickReadSelectedOption != null && gateQuiz.explanation.isNotBlank()) {
+                            Text(
+                                text = gateQuiz.explanation,
+                                fontSize = 12.5.sp,
+                                color = if (quickReadSelectedOption == gateQuiz.correctIndex) EmeraldSuccess else AmberWarning,
+                                lineHeight = 18.sp
+                            )
+                        }
+                    }
+                } else {
+                    Text(
+                        text = "Pastikan kamu sudah memahami poin utama simpul ${NodeDisplay.displayTitle(node)} sebelum melanjutkan.",
+                        fontSize = 13.5.sp,
+                        color = TextSecondary,
+                        lineHeight = 20.sp
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showQuickReadGateDialog = false
+                        quickReadSelectedOption = null
+                        completeQuickReadNode()
+                    },
+                    enabled = gateQuiz == null || quickReadSelectedOption != null,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = CyanPrimary,
+                        contentColor = DeepObsidian
+                    ),
+                    modifier = Modifier.testTag("quick_read_confirm_complete")
+                ) {
+                    Text("Selesaikan & Lanjut", fontWeight = FontWeight.ExtraBold)
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        showQuickReadGateDialog = false
+                        quickReadSelectedOption = null
+                    }
+                ) {
+                    Text("Batal", color = TextSecondary)
+                }
+            }
+        )
+    }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -911,22 +1041,10 @@ private fun FocusNodeReader(
                                     } else {
                                         onReturnToPath?.invoke()
                                     }
+                                } else if (com.example.util.lesson.LESSON_FLOW_ENABLED && nodeQuizzes.isNotEmpty()) {
+                                    showQuickReadGateDialog = true
                                 } else {
-                                    val snapshotCompleted = state.completedNodeCodes
-                                    val snapshotSkipped = skippedNodeCodes
-                                    if (isSkipped) {
-                                        onMarkSkippedNodeAsRead?.invoke(node.code)
-                                    } else {
-                                        viewModel.markNodeCompleted(node.code)
-                                    }
-                                    scope.launch { pathHolder.recordDailyShift(todayKey, nodesDelta = 1) }
-                                    if (onNodeJustCompleted != null) {
-                                        onNodeJustCompleted(node.code, snapshotCompleted, snapshotSkipped)
-                                    } else if (nextPathNode != null && onSelectFocusedNode != null) {
-                                        onSelectFocusedNode(nextPathNode.node.code)
-                                    } else {
-                                        onReturnToPath?.invoke()
-                                    }
+                                    completeQuickReadNode()
                                 }
                             },
                             modifier = Modifier

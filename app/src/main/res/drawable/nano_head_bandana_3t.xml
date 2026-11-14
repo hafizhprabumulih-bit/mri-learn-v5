@@ -1,0 +1,48 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="1024dp"
+    android:height="1024dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+    <!-- Bandana Teknis 3T di dahi & puncak kepala Nano (x=190..835, y=135..230) -->
+    <path
+        android:pathData="M210,205 C235,148 355,130 512,130 C669,130 789,148 814,205 L796,240 C705,212 605,204 512,204 C419,204 319,212 228,240 Z"
+        android:fillColor="#0E7490"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="12"
+        android:strokeLineJoin="round" />
+    <!-- Garis aksen bandana -->
+    <path
+        android:pathData="M245,194 C350,168 674,168 779,194"
+        android:fillColor="#00000000"
+        android:strokeColor="#22D3EE"
+        android:strokeWidth="10"
+        android:strokeLineCap="round" />
+    <!-- Ekor simpul kanan -->
+    <path
+        android:pathData="M808,196 L878,164 L860,212 L896,238 L812,232 Z"
+        android:fillColor="#06B6D4"
+        android:strokeColor="#0B1B32"
+        android:strokeWidth="11"
+        android:strokeLineJoin="round" />
+    <!-- Emblem 3T tengah dahi -->
+    <path
+        android:pathData="M454,148 H570 A16,16 0 0 1 586,164 V196 A16,16 0 0 1 570,212 H454 A16,16 0 0 1 438,196 V164 A16,16 0 0 1 454,148 Z"
+        android:fillColor="#0F172A"
+        android:strokeColor="#22D3EE"
+        android:strokeWidth="8" />
+    <!-- Angka 3 stylised -->
+    <path
+        android:pathData="M468,166 H498 L480,180 C495,180 500,196 484,198 H466"
+        android:fillColor="#00000000"
+        android:strokeColor="#67E8F9"
+        android:strokeWidth="8"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- Huruf T stylised -->
+    <path
+        android:pathData="M518,166 H554 M536,166 V198"
+        android:fillColor="#00000000"
+        android:strokeColor="#67E8F9"
+        android:strokeWidth="8"
+        android:strokeLineCap="round" />
+</vector>

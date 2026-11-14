@@ -84,6 +84,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -154,6 +155,11 @@ fun HomeScreen(
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
 
     var homeRootTopInRoot by remember { mutableStateOf(0f) }
+    var headerBounds by remember { mutableStateOf<Rect?>(null) }
+    var resumeBounds by remember { mutableStateOf<Rect?>(null) }
+    var quickToolsBounds by remember { mutableStateOf<Rect?>(null) }
+    var dailyShiftBounds by remember { mutableStateOf<Rect?>(null) }
+    var curriculumBounds by remember { mutableStateOf<Rect?>(null) }
     var firstModuleBounds by remember { mutableStateOf<Rect?>(null) }
     var guideStep by remember { mutableStateOf(MapGuideStep.NONE) }
     var showLegendFromInfo by remember { mutableStateOf(false) }
@@ -197,7 +203,9 @@ fun HomeScreen(
         Spacer(modifier = Modifier.height(8.dp))
         // Top Header: Pinned at top, does NOT scroll away when swiping up!
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onGloballyPositioned { headerBounds = it.boundsInRoot() },
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -389,20 +397,27 @@ fun HomeScreen(
                 } else {
                     "Memuat posisi terakhir…"
                 }
-                HeroProgressCard(
-                    completedCount = state.completedCount,
-                    totalCount = state.totalNodesCount,
-                    totalXp = xpSummary.totalXp,
-                    completedModulesCount = xpSummary.completedModulesCount,
-                    lastVisitedTitle = resumeTitle,
-                    onContinueClicked = { viewModel.resumeStudy() }
-                )
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    HeroProgressCard(
+                        completedCount = state.completedCount,
+                        totalCount = state.totalNodesCount,
+                        totalXp = xpSummary.totalXp,
+                        completedModulesCount = xpSummary.completedModulesCount,
+                        lastVisitedTitle = resumeTitle,
+                        onContinueClicked = { viewModel.resumeStudy() },
+                        onResumePillPositioned = { resumeBounds = it }
+                    )
+                }
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
             item(key = "learning_tools") {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { quickToolsBounds = it.boundsInRoot() },
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     QuickToolChip(
@@ -445,7 +460,9 @@ fun HomeScreen(
                     0f
                 }
                 Surface(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { dailyShiftBounds = it.boundsInRoot() },
                     shape = RoundedCornerShape(18.dp),
                     color = DarkNavySlate,
                     border = androidx.compose.foundation.BorderStroke(
@@ -528,6 +545,14 @@ fun HomeScreen(
                                     1 -> "Kuis"
                                     else -> "Lab / Game"
                                 }
+                                val taskRatio = if (task.target > 0) {
+                                    (task.current.toFloat() / task.target.toFloat()).coerceIn(0f, 1f)
+                                } else 0f
+                                val ringAccent = when {
+                                    task.isDone || taskRatio >= 1f -> EmeraldSuccess
+                                    taskRatio > 0f -> CyanBright
+                                    else -> TextMuted
+                                }
                                 Surface(
                                     modifier = Modifier.weight(1f),
                                     shape = RoundedCornerShape(12.dp),
@@ -538,24 +563,55 @@ fun HomeScreen(
                                     )
                                 ) {
                                     Row(
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 7.dp),
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = (if (task.isDone) "✓ " else "") + shortLabel,
+                                            text = shortLabel,
                                             fontSize = 10.5.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = if (task.isDone) EmeraldSuccess else TextSecondary,
                                             maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f, fill = false)
                                         )
-                                        Text(
-                                            text = "${task.current}/${task.target}",
-                                            fontSize = 10.5.sp,
-                                            fontWeight = FontWeight.ExtraBold,
-                                            color = if (task.isDone) EmeraldSuccess else CyanBright
-                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Box(
+                                            modifier = Modifier.size(30.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
+                                                val strokeW = 2.6.dp.toPx()
+                                                drawArc(
+                                                    color = CardSlateBorder.copy(alpha = 0.65f),
+                                                    startAngle = 0f,
+                                                    sweepAngle = 360f,
+                                                    useCenter = false,
+                                                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = strokeW)
+                                                )
+                                                if (taskRatio > 0f) {
+                                                    drawArc(
+                                                        color = ringAccent,
+                                                        startAngle = -90f,
+                                                        sweepAngle = 360f * taskRatio,
+                                                        useCenter = false,
+                                                        style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                                            width = strokeW,
+                                                            cap = androidx.compose.ui.graphics.StrokeCap.Round
+                                                        )
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = "${task.current}/${task.target}",
+                                                fontSize = 9.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = ringAccent,
+                                                maxLines = 1,
+                                                softWrap = false
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -628,7 +684,9 @@ fun HomeScreen(
 
             item(key = "curriculum_header") {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onGloballyPositioned { curriculumBounds = it.boundsInRoot() },
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -679,45 +737,6 @@ fun HomeScreen(
                     else -> NanoIllustrationType.CLINICAL_CONSOLE
                 }
 
-                if (firstModInChapter != null) {
-                    val connectorX = PathGeometry.xFractionFor(firstModInChapter.globalIndex)
-                    val connectorDone = firstModInChapter.status == NodeStatus.DONE
-                    item(key = "home_ill_${chapter.chapterKey}") {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 2.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Canvas(modifier = Modifier.matchParentSize()) {
-                                val strokePx = 6.dp.toPx()
-                                val lineColor = if (connectorDone) CyanBright else Color(0xFF426794)
-                                val x = size.width * connectorX.coerceIn(0f, 1f)
-                                drawLine(
-                                    color = lineColor.copy(alpha = 0.28f),
-                                    start = Offset(x, 0f),
-                                    end = Offset(x, size.height),
-                                    strokeWidth = strokePx + 5.dp.toPx()
-                                )
-                                drawLine(
-                                    color = lineColor,
-                                    start = Offset(x, 0f),
-                                    end = Offset(x, size.height),
-                                    strokeWidth = strokePx
-                                )
-                            }
-
-                            InteractiveNanoIllustration(
-                                type = chapterIllType,
-                                characterCustomization = state.characterCustomization,
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .padding(vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-
                 chapter.modules.forEachIndexed { localIdx, modState ->
                     val module = modState.module
                     val xFraction = PathGeometry.xFractionFor(modState.globalIndex)
@@ -755,7 +774,20 @@ fun HomeScreen(
                                         .padding(top = 6.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    // Kotak toggle 3D modul (M01-M09) bersih tanpa teks penjelasan di bawahnya
+                                    // Ilustrasi kecil di bagian tengah-pinggir (berlawanan sisi dengan toggle utama)
+                                    if (localIdx == 0) {
+                                        val putOnRight = xFraction <= 0.5f
+                                        InteractiveNanoIllustration(
+                                            type = chapterIllType,
+                                            alignRight = putOnRight,
+                                            characterCustomization = state.characterCustomization,
+                                            modifier = Modifier
+                                                .align(if (putOnRight) Alignment.CenterEnd else Alignment.CenterStart)
+                                                .padding(horizontal = 22.dp, vertical = 4.dp)
+                                        )
+                                    }
+
+                                    // Kotak toggle 3D modul (M01-M09) bersih pada posisi aslinya di jalur peta
                                     PathAlignedSlot(xFraction = xFraction) {
                                         PathNodeButton(
                                             status = modState.status,
@@ -771,8 +803,7 @@ fun HomeScreen(
                                                 .then(
                                                     if (modState.globalIndex == 0) {
                                                         Modifier.onGloballyPositioned { coords ->
-                                                            val raw = coords.boundsInRoot()
-                                                            firstModuleBounds = raw.translate(0f, -homeRootTopInRoot)
+                                                            firstModuleBounds = coords.boundsInRoot()
                                                         }
                                                     } else {
                                                         Modifier
@@ -827,25 +858,64 @@ fun HomeScreen(
             onDismiss = { selectedModuleForSheet = null },
             onContinuePath = {
                 selectedModuleForSheet = null
-                viewModel.openModuleDetail(sheetModule)
+                viewModel.triggerSectionTransition("Modul ${sheetModule.code}: ${sheetModule.title}") {
+                    viewModel.openModuleDetail(sheetModule)
+                }
             },
             onOpenAllNodes = {
                 selectedModuleForSheet = null
                 PathNavigationHints.requestOpenAllNodes()
-                viewModel.openModuleDetail(sheetModule)
+                viewModel.triggerSectionTransition("Modul ${sheetModule.code}: ${sheetModule.title}") {
+                    viewModel.openModuleDetail(sheetModule)
+                }
             },
             onOpenFlashcards = {
                 selectedModuleForSheet = null
                 PathNavigationHints.requestOpenFlashcards()
-                viewModel.openModuleDetail(sheetModule)
+                viewModel.triggerSectionTransition("Modul ${sheetModule.code}: ${sheetModule.title}") {
+                    viewModel.openModuleDetail(sheetModule)
+                }
             }
         )
     }
 
-    val boundsForSpotlight = firstModuleBounds
-    if (guideStep == MapGuideStep.SPOTLIGHT && boundsForSpotlight != null) {
+    val activeGuideInfo: Triple<Rect, String, Pair<String, String>>? = when (guideStep) {
+        MapGuideStep.HEADER_PROFILE -> (headerBounds ?: firstModuleBounds)?.let {
+            Triple(it, "1 DARI 6", "Profil & Statistik Pengguna" to "Lihat spesialisasi Anda, pantau streak harian, raihan XP, dan akses disclaimer info aplikasi.")
+        }
+        MapGuideStep.RESUME_CARD -> (resumeBounds ?: firstModuleBounds)?.let {
+            Triple(it, "2 DARI 6", "Lanjutkan Belajar" to "Lompat langsung ke materi terakhir yang Anda pelajari tanpa perlu mencari manual di peta.")
+        }
+        MapGuideStep.QUICK_ACTIONS -> (quickToolsBounds ?: firstModuleBounds)?.let {
+            Triple(it, "3 DARI 6", "Akses Cepat Pembelajaran" to "Akses instan ke flashcard tersimpan, catatan pribadi (ekspor PDF), glosarium medis, dan animasi sekuens.")
+        }
+        MapGuideStep.DAILY_SHIFT -> (dailyShiftBounds ?: firstModuleBounds)?.let {
+            Triple(it, "4 DARI 6", "Shift Nano Hari Ini" to "Selesaikan misi harian membaca materi, kuis, dan minigame untuk meraih bonus XP serta menjaga konsistensi belajar!")
+        }
+        MapGuideStep.SPOTLIGHT -> (firstModuleBounds ?: curriculumBounds)?.let {
+            Triple(it, "5 DARI 6", "Peta Kurikulum MRI" to "Jelajahi simpul 3D terstruktur dari Bab 1 hingga Bab 9 yang mencakup seluruh topik fisika dan klinis MRI.")
+        }
+        MapGuideStep.BOTTOM_NAV -> {
+            val density = LocalDensity.current
+            val screenH = with(density) { LocalConfiguration.current.screenHeightDp.dp.toPx() }
+            val screenW = with(density) { LocalConfiguration.current.screenWidthDp.dp.toPx() }
+            val navH = with(density) { 68.dp.toPx() }
+            Triple(
+                Rect(0f, (screenH - navH).coerceAtLeast(0f), screenW, screenH),
+                "6 DARI 6",
+                "Bilah Navigasi Lengkap" to "Beralih cepat antara Beranda, Simulasi Lab, Minigame Arcade, Catatan, Kuis Lengkap, dan Ruang Karakter Nano!"
+            )
+        }
+        else -> null
+    }
+
+    if (activeGuideInfo != null) {
+        val (targetRect, badge, textPair) = activeGuideInfo
         MapGuideCoachOverlay(
-            targetBounds = boundsForSpotlight,
+            targetBounds = targetRect,
+            stepBadge = badge,
+            title = textPair.first,
+            description = textPair.second,
             onNext = {
                 pathHolder.markMapGuideSeenAsync()
                 guideStep = MapGuideStateMachine.nextStep(guideStep)
@@ -880,7 +950,8 @@ fun HeroProgressCard(
     totalXp: Int,
     completedModulesCount: Int,
     lastVisitedTitle: String,
-    onContinueClicked: () -> Unit
+    onContinueClicked: () -> Unit,
+    onResumePillPositioned: ((Rect) -> Unit)? = null
 ) {
     Card(
         modifier = Modifier
@@ -970,7 +1041,14 @@ fun HeroProgressCard(
                     modifier = Modifier
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = 48.dp)
-                        .clickable(onClick = onContinueClicked),
+                        .clickable(onClick = onContinueClicked)
+                        .then(
+                            if (onResumePillPositioned != null) {
+                                Modifier.onGloballyPositioned { onResumePillPositioned(it.boundsInRoot()) }
+                            } else {
+                                Modifier
+                            }
+                        ),
                     shape = RoundedCornerShape(14.dp),
                     color = Color(0xF2F8FAFC)
                 ) {
