@@ -15,12 +15,22 @@ suspend fun MriDatabase.normalizeLegacyNodeCodes() {
             val newModule = LegacyNodeCodes.moduleIdOf(newCode)
             val old = progressDao.getByNodeCode(oldCode)
             if (old != null) {
-                if (progressDao.getByNodeCode(newCode) == null) {
+                val existing = progressDao.getByNodeCode(newCode)
+                if (existing == null) {
                     progressDao.insert(
                         NodeProgressEntity(
                             nodeCode = newCode,
                             completedAt = old.completedAt,
-                            moduleId = newModule
+                            moduleId = newModule,
+                            source = old.source
+                        )
+                    )
+                } else if (existing.source != "READ" && old.source == "READ") {
+                    progressDao.insert(
+                        existing.copy(
+                            completedAt = old.completedAt,
+                            moduleId = newModule,
+                            source = old.source
                         )
                     )
                 }

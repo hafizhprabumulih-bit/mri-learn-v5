@@ -36,10 +36,12 @@ object MasteryStars {
 
     fun starCaption(stars: Int, hasStory: Boolean, hasCheck: Boolean): String {
         return when {
+            stars >= 3 && hasStory && !hasCheck -> "3 bintang: kedua soal cerita benar di percobaan pertama"
             stars >= 3 -> "3 bintang: soal cerita & cek ringkasan benar di percobaan pertama"
             stars == 2 && hasStory && !hasCheck -> "2 bintang: soal cerita benar di percobaan pertama"
             stars == 2 && !hasStory && hasCheck -> "2 bintang: cek ringkasan benar di percobaan pertama"
-            stars == 2 -> "2 bintang: soal cerita benar di percobaan pertama"
+            stars == 2 && hasStory && hasCheck -> "2 bintang: salah satu soal evaluasi benar di percobaan pertama"
+            stars == 2 -> "2 bintang: evaluasi benar di percobaan pertama"
             else -> "1 bintang: pelajaran selesai"
         }
     }

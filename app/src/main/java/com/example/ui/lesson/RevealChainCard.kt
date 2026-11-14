@@ -70,11 +70,12 @@ fun RevealChainCard(
     reduceMotion: Boolean,
     onNanoExpressionChange: (Expression, String?) -> Unit,
     onContinueLesson: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    stateKey: String = interactive.title
 ) {
     val totalSteps = interactive.steps.size.coerceAtLeast(1)
-    var revealedCount by rememberSaveable(interactive.title) { mutableIntStateOf(1) }
-    val selectedPredictions = remember(interactive.title) { mutableStateMapOf<Int, Int>() }
+    var revealedCount by rememberSaveable(stateKey) { mutableIntStateOf(1) }
+    val selectedPredictions = remember(stateKey) { mutableStateMapOf<Int, Int>() }
 
     val allRevealed = revealedCount >= totalSteps
     val nextStepIndex = revealedCount
@@ -293,16 +294,13 @@ fun RevealChainCard(
                                                     if (isRight) {
                                                         onNanoExpressionChange(
                                                             Expression.SENANG,
-                                                            "Betul! Sekarang perhatikan apa yang terjadi pada langkah ${nextStepIndex + 1}."
+                                                            "Betul! Ketuk Langkah berikutnya untuk membuka tahapan ke-${nextStepIndex + 1}."
                                                         )
                                                     } else {
                                                         onNanoExpressionChange(
                                                             Expression.BERPIKIR,
-                                                            "Hampir! Coba lihat langkah ${nextStepIndex + 1} yang baru terbuka."
+                                                            "Hampir! Ketuk Langkah berikutnya untuk melihat pembuktiannya."
                                                         )
-                                                    }
-                                                    if (revealedCount < totalSteps) {
-                                                        revealedCount++
                                                     }
                                                 }
                                                 .testTag("reveal_pred_option_$optIdx"),

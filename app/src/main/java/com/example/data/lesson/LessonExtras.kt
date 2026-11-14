@@ -41,7 +41,9 @@ data class InteractiveContent(
 data class NodeLessonExtras(
     val nodeCode: String,
     val nanoHints: List<String> = emptyList(),
+    val nanoHintsReviewed: Boolean = false,
     val recap: List<String> = emptyList(),
+    val recapReviewed: Boolean = false,
     val stories: List<StoryQuestion> = emptyList(),
     val interactive: InteractiveContent? = null
 )
@@ -92,7 +94,14 @@ object LessonExtrasLoader {
                 val rawKey = keys.next()
                 val normKey = LegacyNodeCodes.normalize(rawKey)
                 val nodeObj = nodesObj.optJSONObject(rawKey) ?: continue
-                nodesMap[normKey] = parseNodeExtras(normKey, nodeObj)
+                val parsed = parseNodeExtras(normKey, nodeObj)
+                val existing = nodesMap[normKey]
+                nodesMap[normKey] = if (existing == null) {
+                    parsed
+                } else {
+                    Log.w(TAG, "Kunci duplikat setelah normalisasi pada $normKey (asal=$rawKey); menggabungkan entri")
+                    mergeNodeExtras(existing, parsed)
+                }
             }
             LessonExtras(version = version, nodes = nodesMap)
         } catch (e: Exception) {
@@ -102,8 +111,19 @@ object LessonExtrasLoader {
     }
 
     private fun parseNodeExtras(nodeCode: String, obj: JSONObject): NodeLessonExtras {
-        val nanoHints = obj.optJSONArray("nanoHints").toStringList()
-        val recap = obj.optJSONArray("recap").toStringList()
+        val (nanoHints, nanoHintsObjReviewed) = parseReviewedStringSection(obj, "nanoHints")
+        val nanoHintsReviewed = if (obj.has("nanoHintsReviewed")) {
+            obj.optBoolean("nanoHintsReviewed", false)
+        } else {
+            nanoHintsObjReviewed
+        }
+
+        val (recap, recapObjReviewed) = parseReviewedStringSection(obj, "recap")
+        val recapReviewed = if (obj.has("recapReviewed")) {
+            obj.optBoolean("recapReviewed", false)
+        } else {
+            recapObjReviewed
+        }
 
         val stories = mutableListOf<StoryQuestion>()
         val storiesArr = obj.optJSONArray("stories")
@@ -184,9 +204,50 @@ object LessonExtrasLoader {
         return NodeLessonExtras(
             nodeCode = nodeCode,
             nanoHints = nanoHints,
+            nanoHintsReviewed = nanoHintsReviewed,
             recap = recap,
+            recapReviewed = recapReviewed,
             stories = stories,
             interactive = interactive
+        )
+    }
+
+    private fun parseReviewedStringSection(obj: JSONObject, key: String): Pair<List<String>, Boolean> {
+        val arr = obj.optJSONArray(key)
+        if (arr != null) {
+            return arr.toStringList() to false
+        }
+        val wrapper = obj.optJSONObject(key)
+        if (wrapper != null) {
+            val items = wrapper.optJSONArray("items").toStringList()
+            val reviewed = wrapper.optBoolean("reviewed", false)
+            return items to reviewed
+        }
+        return emptyList<String>() to false
+    }
+
+    private fun mergeNodeExtras(first: NodeLessonExtras, second: NodeLessonExtras): NodeLessonExtras {
+        val mergedHints = (first.nanoHints + second.nanoHints).distinct()
+        val mergedRecap = (first.recap + second.recap).distinct()
+        val mergedStories = (first.stories + second.stories).distinctBy { it.id }
+        val hintsReviewed = when {
+            first.nanoHints.isEmpty() -> second.nanoHintsReviewed
+            second.nanoHints.isEmpty() -> first.nanoHintsReviewed
+            else -> first.nanoHintsReviewed && second.nanoHintsReviewed
+        }
+        val recapReviewed = when {
+            first.recap.isEmpty() -> second.recapReviewed
+            second.recap.isEmpty() -> first.recapReviewed
+            else -> first.recapReviewed && second.recapReviewed
+        }
+        return NodeLessonExtras(
+            nodeCode = first.nodeCode,
+            nanoHints = mergedHints,
+            nanoHintsReviewed = hintsReviewed,
+            recap = mergedRecap,
+            recapReviewed = recapReviewed,
+            stories = mergedStories,
+            interactive = second.interactive ?: first.interactive
         )
     }
 
@@ -194,7 +255,10 @@ object LessonExtrasLoader {
         if (this == null) return emptyList()
         val list = mutableListOf<String>()
         for (i in 0 until length()) {
-            val item = optString(i).trim()
+            if (isNull(i)) continue
+            val raw = opt(i)
+            if (raw == null || raw === JSONObject.NULL) continue
+            val item = optString(i, "").trim()
             if (item.isNotEmpty()) list.add(item)
         }
         return list

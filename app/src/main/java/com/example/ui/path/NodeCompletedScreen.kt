@@ -108,7 +108,8 @@ fun NodeCompletedScreen(
     recapBullets: List<String> = emptyList(),
     addToDailyReviewChecked: Boolean = false,
     onToggleDailyReview: (Boolean) -> Unit = {},
-    onReplayLesson: (() -> Unit)? = null
+    onReplayLesson: (() -> Unit)? = null,
+    isReplay: Boolean = false
 ) {
     val haptics = com.example.util.rememberMriHaptics()
     val reduceMotion = rememberReduceMotion()
@@ -259,17 +260,19 @@ fun NodeCompletedScreen(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        // 3 Kartu Metrik: XP, SIMPUL, STREAK (sesuai Mockup 4)
+                        // 3 Kartu Metrik: XP (disembunyikan saat mode Ulangi), SIMPUL, STREAK
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(10.dp)
                         ) {
-                            CompletedMetricBox(
-                                label = "XP",
-                                value = if (earnedXp > 0) "+$earnedXp" else "+0",
-                                valueColor = AmberWarning,
-                                modifier = Modifier.weight(1f)
-                            )
+                            if (!isReplay) {
+                                CompletedMetricBox(
+                                    label = "XP",
+                                    value = if (earnedXp > 0) "+$earnedXp" else "+0",
+                                    valueColor = AmberWarning,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
                             CompletedMetricBox(
                                 label = "SIMPUL",
                                 value = "$doneNodesInModule/$totalNodesInModule",

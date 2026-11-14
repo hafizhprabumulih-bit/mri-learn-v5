@@ -150,6 +150,8 @@ fun HomeScreen(
     }
     val dailyCounts by pathHolder.observeDailyShiftCounts(todayKey).collectAsState(initial = Triple(0, 0, 0))
     val triedLabNodes by pathHolder.triedLabNodesFlow.collectAsState(initial = emptySet())
+    val manualReviewNodes by pathHolder.manualReviewNodesFlow.collectAsState(initial = emptySet())
+    val excludedReviewNodes by pathHolder.excludedReviewNodesFlow.collectAsState(initial = emptySet())
     val scope = rememberCoroutineScope()
     val haptics = com.example.util.rememberMriHaptics()
     val screenWidthDp = LocalConfiguration.current.screenWidthDp
@@ -375,11 +377,18 @@ fun HomeScreen(
                 labsToday = dailyCounts.third
             )
         }
-        val dueReviews = remember(state.quizAttempts, state.modulesList) {
+        val dueReviews = remember(
+            state.quizAttempts,
+            state.modulesList,
+            manualReviewNodes,
+            excludedReviewNodes
+        ) {
             SpacedRepetition.selectDueReviews(
                 attempts = state.quizAttempts,
                 modules = state.modulesList,
-                maxItems = 3
+                maxItems = 3,
+                manualReviewNodes = manualReviewNodes,
+                excludedReviewNodes = excludedReviewNodes
             )
         }
 

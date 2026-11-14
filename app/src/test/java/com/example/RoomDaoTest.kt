@@ -8,6 +8,7 @@ import com.example.data.local.NodeProgressEntity
 import com.example.data.local.QuizAttemptEntity
 import com.example.data.local.StudyDayEntity
 import com.example.data.local.StudyNoteEntity
+import com.example.data.local.normalizeLegacyNodeCodes
 import com.example.data.toDomainModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -882,6 +883,45 @@ class RoomDaoTest {
 
         repo.clearAllBookmarks()
         assertTrue(repo.bookmarkedNodesFlow.first().isEmpty())
+    }
+
+    @Test
+    fun normalizeLegacyNodeCodes_preservesSkipTestSourceAndUpgradesTargetToRead() = runBlocking {
+        val dao = db.nodeProgressDao()
+        dao.insert(
+            NodeProgressEntity(
+                nodeCode = "M03.T1.1",
+                completedAt = 1000L,
+                moduleId = "M03",
+                source = "SKIP_TEST"
+            )
+        )
+        dao.insert(
+            NodeProgressEntity(
+                nodeCode = "M03.T1.2",
+                completedAt = 2000L,
+                moduleId = "M03",
+                source = "READ"
+            )
+        )
+        dao.insert(
+            NodeProgressEntity(
+                nodeCode = "M03A.T1.3",
+                completedAt = 1500L,
+                moduleId = "M03A",
+                source = "SKIP_TEST"
+            )
+        )
+
+        db.normalizeLegacyNodeCodes()
+
+        val migratedSkipped = dao.getByNodeCode("M03A.T1.1")
+        assertEquals("SKIP_TEST", migratedSkipped?.source)
+        assertEquals("M03A", migratedSkipped?.moduleId)
+
+        val upgradedRead = dao.getByNodeCode("M03A.T1.3")
+        assertEquals("READ", upgradedRead?.source)
+        assertEquals("M03A", upgradedRead?.moduleId)
     }
 }
 

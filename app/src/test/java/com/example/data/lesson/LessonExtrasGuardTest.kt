@@ -3,6 +3,7 @@ package com.example.data.lesson
 import com.example.data.LegacyNodeCodes
 import com.example.data.MriRepository
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +39,13 @@ class LessonExtrasGuardTest {
             .flatMap { it.nodes }
             .mapTo(HashSet()) { LegacyNodeCodes.normalize(it.code) }
 
+        val m01t0 = extras.forNode("M01.T0")
+        assertNotNull("Entri M01.T0 harus tersedia di lesson_extras.json", m01t0)
+        assertFalse("nanoHintsReviewed M01.T0 harus false saat masih draf", m01t0!!.nanoHintsReviewed)
+        assertFalse("recapReviewed M01.T0 harus false saat masih draf", m01t0.recapReviewed)
+
+        val seenStoryIds = HashSet<String>()
+
         for ((nodeKey, nodeExtras) in extras.nodes) {
             val normKey = LegacyNodeCodes.normalize(nodeKey)
             assertTrue(
@@ -54,12 +62,26 @@ class LessonExtrasGuardTest {
 
             nodeExtras.stories.forEach { story ->
                 assertTrue(
+                    "ID story '${story.id}' duplikat lintas simpul",
+                    seenStoryIds.add(story.id)
+                )
+                assertTrue(
                     "ID story '${story.id}' harus diawali 'story:$normKey:'",
                     story.id.startsWith("story:$normKey:")
                 )
                 assertTrue(
-                    "Jumlah opsi pada ${story.id} harus 2..4",
-                    story.options.size in 2..4
+                    "Panjang scenario pada ${story.id} melebihi 400 karakter (${story.scenario.length})",
+                    story.scenario.length <= 400
+                )
+                assertEquals(
+                    "Story ${story.id} harus memiliki tepat 4 opsi",
+                    4,
+                    story.options.size
+                )
+                assertEquals(
+                    "Keempat opsi pada ${story.id} harus unik",
+                    4,
+                    story.options.map { it.trim() }.distinct().size
                 )
                 assertTrue(
                     "correctIndex pada ${story.id} di luar batas opsi",
@@ -80,18 +102,49 @@ class LessonExtrasGuardTest {
             nodeExtras.interactive?.let { interactive ->
                 assertEquals("REVEAL_CHAIN", interactive.type)
                 assertTrue(
-                    "Interactive steps pada $normKey harus berjumlah 2..6",
-                    interactive.steps.size in 2..6
+                    "Interactive steps pada $normKey harus berjumlah 3..6",
+                    interactive.steps.size in 3..6
                 )
                 interactive.steps.forEach { step ->
                     assertTrue(step.text.isNotBlank())
                     step.prediction?.let { pred ->
                         assertTrue(pred.question.isNotBlank())
                         assertTrue(pred.options.size in 2..4)
+                        assertEquals(
+                            "Opsi prediction pada $normKey harus unik",
+                            pred.options.size,
+                            pred.options.map { it.trim() }.distinct().size
+                        )
                         assertTrue(pred.correctIndex in pred.options.indices)
                     }
                 }
             }
         }
+    }
+
+    @Test
+    fun parseJson_skipsJsonNullArrayElementsAndSupportsReviewFlags() {
+        val rawJson = """
+            {
+              "version": 1,
+              "nodes": {
+                "M01.T0": {
+                  "nanoHints": [null, "Tip A", ""],
+                  "nanoHintsReviewed": true,
+                  "recap": {
+                    "items": [null, "Ringkasan A"],
+                    "reviewed": true
+                  }
+                }
+              }
+            }
+        """.trimIndent()
+        val parsed = LessonExtrasLoader.parseJson(rawJson)
+        val node = parsed.forNode("M01.T0")
+        assertNotNull(node)
+        assertEquals(listOf("Tip A"), node!!.nanoHints)
+        assertTrue(node.nanoHintsReviewed)
+        assertEquals(listOf("Ringkasan A"), node.recap)
+        assertTrue(node.recapReviewed)
     }
 }

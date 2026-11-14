@@ -314,7 +314,7 @@ fun ModulePathScreen(
                                 color = CyanBright.copy(alpha = 0.22f)
                             ) {
                                 Text(
-                                    text = "TERAKHIR DIBACA",
+                                    text = "LANGKAH AKTIF",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.ExtraBold,
                                     color = CyanBright,
@@ -787,7 +787,12 @@ fun ModulePathScreen(
             onOpenTargetNode = {
                 val targetCode = currentSkipPlan.targetNodeCode
                 activeSkipTestPlan = null
-                onOpenNodeReader(targetCode)
+                if (com.example.util.lesson.LESSON_FLOW_ENABLED) {
+                    pathHolder.setPreferredReaderModeAsync("LESSON")
+                    onOpenLesson(targetCode)
+                } else {
+                    onOpenNodeReader(targetCode)
+                }
             },
             onDismiss = { activeSkipTestPlan = null }
         )

@@ -82,11 +82,17 @@ class UserDataRepository(
         val PREFERRED_READER_MODE = stringPreferencesKey("preferred_reader_mode")
         val LESSON_TAP_HINT_COUNT = intPreferencesKey("lesson_tap_hint_count")
         val MANUAL_REVIEW_NODES = stringSetPreferencesKey("manual_review_nodes")
+        val EXCLUDED_REVIEW_NODES = stringSetPreferencesKey("excluded_review_nodes")
         val ALLOW_LESSON_DRAFTS = booleanPreferencesKey("allow_lesson_drafts")
 
         fun lessonStepKey(nodeCode: String): Preferences.Key<Int> {
             val norm = LegacyNodeCodes.normalize(nodeCode.trim())
             return intPreferencesKey("lesson_step_$norm")
+        }
+
+        fun lessonAnswersKey(nodeCode: String): Preferences.Key<String> {
+            val norm = LegacyNodeCodes.normalize(nodeCode.trim())
+            return stringPreferencesKey("lesson_answers_$norm")
         }
     }
 
@@ -205,6 +211,11 @@ class UserDataRepository(
         return dataStore.data.map { prefs -> prefs[key] ?: 0 }
     }
 
+    fun observeSavedLessonAnswers(nodeCode: String): Flow<String> {
+        val key = PreferencesKeys.lessonAnswersKey(nodeCode)
+        return dataStore.data.map { prefs -> prefs[key] ?: "" }
+    }
+
     suspend fun saveLessonStep(nodeCode: String, stepIndex: Int) {
         val norm = LegacyNodeCodes.normalize(nodeCode.trim())
         if (norm.isBlank()) return
@@ -218,25 +229,57 @@ class UserDataRepository(
         }
     }
 
+    suspend fun saveLessonProgress(nodeCode: String, stepIndex: Int, encodedAnswers: String) {
+        val norm = LegacyNodeCodes.normalize(nodeCode.trim())
+        if (norm.isBlank()) return
+        val stepKey = PreferencesKeys.lessonStepKey(norm)
+        val answersKey = PreferencesKeys.lessonAnswersKey(norm)
+        dataStore.edit { prefs ->
+            if (stepIndex <= 0) {
+                prefs.remove(stepKey)
+            } else {
+                prefs[stepKey] = stepIndex
+            }
+            if (encodedAnswers.isBlank()) {
+                prefs.remove(answersKey)
+            } else {
+                prefs[answersKey] = encodedAnswers
+            }
+        }
+    }
+
     suspend fun clearLessonStep(nodeCode: String) {
         val norm = LegacyNodeCodes.normalize(nodeCode.trim())
         if (norm.isBlank()) return
         val key = PreferencesKeys.lessonStepKey(norm)
+        val answersKey = PreferencesKeys.lessonAnswersKey(norm)
         dataStore.edit { prefs ->
             prefs.remove(key)
+            prefs.remove(answersKey)
         }
     }
 
     val manualReviewNodesFlow: Flow<Set<String>> = dataStore.data.map { prefs ->
-        prefs[PreferencesKeys.MANUAL_REVIEW_NODES] ?: emptySet()
+        LegacyNodeCodes.normalizeAll(prefs[PreferencesKeys.MANUAL_REVIEW_NODES] ?: emptySet())
+    }
+
+    val excludedReviewNodesFlow: Flow<Set<String>> = dataStore.data.map { prefs ->
+        LegacyNodeCodes.normalizeAll(prefs[PreferencesKeys.EXCLUDED_REVIEW_NODES] ?: emptySet())
     }
 
     suspend fun setNodeManualReview(nodeCode: String, enabled: Boolean) {
         val norm = LegacyNodeCodes.normalize(nodeCode.trim())
         if (norm.isBlank()) return
         dataStore.edit { prefs ->
-            val cur = prefs[PreferencesKeys.MANUAL_REVIEW_NODES] ?: emptySet()
-            prefs[PreferencesKeys.MANUAL_REVIEW_NODES] = if (enabled) cur + norm else cur - norm
+            val curManual = LegacyNodeCodes.normalizeAll(prefs[PreferencesKeys.MANUAL_REVIEW_NODES] ?: emptySet())
+            val curExcluded = LegacyNodeCodes.normalizeAll(prefs[PreferencesKeys.EXCLUDED_REVIEW_NODES] ?: emptySet())
+            if (enabled) {
+                prefs[PreferencesKeys.MANUAL_REVIEW_NODES] = curManual + norm
+                prefs[PreferencesKeys.EXCLUDED_REVIEW_NODES] = curExcluded - norm
+            } else {
+                prefs[PreferencesKeys.MANUAL_REVIEW_NODES] = curManual - norm
+                prefs[PreferencesKeys.EXCLUDED_REVIEW_NODES] = curExcluded + norm
+            }
         }
     }
 

@@ -84,7 +84,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import com.example.BuildConfig
 import com.example.data.CharacterCustomizationState
+import kotlinx.coroutines.flow.map
 import com.example.data.GlossaryItem
 import com.example.data.MriModule
 import com.example.data.MriNode
@@ -138,8 +140,13 @@ fun LessonScreen(
     val reduceMotion = rememberReduceMotion()
     val normalizedNodeCode = remember(node.code) { LegacyNodeCodes.normalize(node.code) }
 
-    val allowDrafts by pathHolder.allowLessonDraftsFlow.collectAsState(initial = false)
-    val savedStepIndex by pathHolder.observeSavedLessonStep(normalizedNodeCode).collectAsState(initial = 0)
+    val rawAllowDraftsState by remember(pathHolder) {
+        pathHolder.allowLessonDraftsFlow.map<Boolean, Boolean?> { it }
+    }.collectAsState(initial = null)
+    val allowDraftsLoaded = !BuildConfig.DEBUG || rawAllowDraftsState != null
+    val allowDrafts = BuildConfig.DEBUG && (rawAllowDraftsState == true)
+    val savedStepIndex by pathHolder.observeSavedLessonStep(normalizedNodeCode).collectAsState(initial = -1)
+    val savedEncodedAnswers by pathHolder.observeSavedLessonAnswers(normalizedNodeCode).collectAsState(initial = "__LOADING__")
     val tapHintCount by pathHolder.lessonTapHintCountFlow.collectAsState(initial = 0)
 
     val nodeExtras = remember(normalizedNodeCode, pathHolder.lessonExtras) {
@@ -155,34 +162,75 @@ fun LessonScreen(
         )
     }
 
+    val correctIndexByItem = remember(normalizedNodeCode, nodeExtras, allQuizzes) {
+        buildMap {
+            nodeExtras?.stories.orEmpty().forEach { story ->
+                put(story.id, story.correctIndex)
+            }
+            allQuizzes
+                .filter { LegacyNodeCodes.normalize(it.nodeCode) == normalizedNodeCode }
+                .forEach { quiz ->
+                    put(quiz.id, quiz.correctIndex)
+                }
+        }
+    }
+
     var lessonState by remember(plan) {
         mutableStateOf(LessonState(plan = plan))
     }
 
-    var hasRestoredStep by rememberSaveable(normalizedNodeCode, isReplayMode) {
+    var hasRestoredStep by remember(plan, normalizedNodeCode, isReplayMode) {
         mutableStateOf(false)
     }
 
-    LaunchedEffect(savedStepIndex, hasRestoredStep, isReplayMode) {
-        if (!hasRestoredStep) {
+    LaunchedEffect(
+        savedStepIndex,
+        savedEncodedAnswers,
+        allowDraftsLoaded,
+        plan,
+        hasRestoredStep,
+        isReplayMode
+    ) {
+        val canFinishLoading = allowDraftsLoaded &&
+            (isReplayMode || (savedStepIndex >= 0 && savedEncodedAnswers != "__LOADING__"))
+        if (!hasRestoredStep && canFinishLoading) {
             hasRestoredStep = true
-            if (!isReplayMode && savedStepIndex > 0) {
-                lessonState = LessonReducer.reduce(
-                    lessonState,
-                    LessonEvent.RestoreIndex(savedStepIndex)
+            if (!isReplayMode && (savedStepIndex > 0 || savedEncodedAnswers.isNotEmpty())) {
+                lessonState = LessonReducer.restoreProgress(
+                    state = lessonState,
+                    savedIndex = savedStepIndex,
+                    encodedAttempts = savedEncodedAnswers,
+                    correctIndexByItem = correctIndexByItem
                 )
             }
         }
     }
 
-    // Simpan posisi langkah setiap kali berpindah langkah
-    LaunchedEffect(lessonState.index, lessonState.finished) {
-        if (lessonState.finished) {
+    var completionDispatched by remember(plan) { mutableStateOf(false) }
+
+    LaunchedEffect(lessonState.finished) {
+        if (lessonState.finished && !completionDispatched) {
+            completionDispatched = true
             pathHolder.clearLessonStepAsync(normalizedNodeCode)
             haptics.completionBuzz()
             onLessonFinished()
-        } else if (hasRestoredStep && !isReplayMode) {
-            pathHolder.saveLessonStepAsync(normalizedNodeCode, lessonState.index)
+        }
+    }
+
+    // Simpan posisi langkah dan progres jawaban setiap kali berpindah langkah atau menjawab
+    LaunchedEffect(
+        lessonState.index,
+        lessonState.attemptsByItem,
+        lessonState.finished,
+        hasRestoredStep,
+        isReplayMode
+    ) {
+        if (!lessonState.finished && hasRestoredStep && !isReplayMode) {
+            pathHolder.saveLessonProgressAsync(
+                nodeCode = normalizedNodeCode,
+                stepIndex = lessonState.index,
+                encodedAnswers = LessonReducer.encodeAttempts(lessonState.attemptsByItem)
+            )
         }
     }
 
@@ -203,8 +251,9 @@ fun LessonScreen(
     val currentStep = lessonState.currentStep
 
     BackHandler {
-        if (lessonState.index > 0 && currentStep !is LessonStep.Story && currentStep !is LessonStep.Check) {
-            lessonState = LessonReducer.reduce(lessonState, LessonEvent.Back)
+        val steppedBack = LessonReducer.reduce(lessonState, LessonEvent.Back)
+        if (steppedBack.index != lessonState.index) {
+            lessonState = steppedBack
         } else {
             showExitConfirmDialog = true
         }
@@ -397,6 +446,7 @@ fun LessonScreen(
                                 RevealChainCard(
                                     interactive = interactiveContent,
                                     reduceMotion = reduceMotion,
+                                    stateKey = "$normalizedNodeCode:${interactiveContent.title}",
                                     onNanoExpressionChange = { exp, msg ->
                                         haptics.lightToggle()
                                         interactiveNanoExpression = exp
@@ -859,13 +909,30 @@ private fun LessonStepBadgeRow(
                 )
             }
             is LessonStep.Interactive -> {
-                Text(
-                    text = "Interaktif",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = TextSecondary,
-                    softWrap = false
-                )
+                if (currentStep.isDraft) {
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = AmberWarning.copy(alpha = 0.16f),
+                        border = BorderStroke(1.dp, AmberWarning.copy(alpha = 0.55f))
+                    ) {
+                        Text(
+                            text = "Interaktif · DRAF",
+                            fontSize = 11.5.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = AmberWarning,
+                            softWrap = false,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                        )
+                    }
+                } else {
+                    Text(
+                        text = "Interaktif",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextSecondary,
+                        softWrap = false
+                    )
+                }
             }
             is LessonStep.Story -> {
                 Surface(
@@ -1230,11 +1297,11 @@ private fun LessonBottomNanoBar(
                         border = BorderStroke(1.dp, CyanPrimary.copy(alpha = 0.45f))
                     ) {
                         Text(
-                            text = nanoBubbleText.take(105),
+                            text = nanoBubbleText,
                             fontSize = 12.sp,
                             color = TextPrimary,
                             lineHeight = 16.5.sp,
-                            maxLines = 3,
+                            maxLines = 4,
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
                         )
@@ -1283,7 +1350,7 @@ private fun LessonQuestionView(
     options: List<String>,
     correctIndex: Int,
     explanation: String,
-    followUps: List<String>,
+    @Suppress("UNUSED_PARAMETER") followUps: List<String>,
     lessonState: LessonState,
     characterCustomization: CharacterCustomizationState,
     onSelectOption: (Int) -> Unit,
@@ -1539,30 +1606,10 @@ private fun LessonQuestionView(
                         }
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.End,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            if (followUps.isNotEmpty()) {
-                                Surface(
-                                    shape = RoundedCornerShape(999.dp),
-                                    color = DarkNavySlate,
-                                    border = BorderStroke(1.dp, CardSlateBorder),
-                                    modifier = Modifier.weight(1f, fill = false)
-                                ) {
-                                    Text(
-                                        text = followUps.first(),
-                                        fontSize = 11.5.sp,
-                                        color = TextSecondary,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(8.dp))
-                            } else {
-                                Spacer(modifier = Modifier.width(1.dp))
-                            }
-
+                            // Cip followUps non-interaktif sengaja disembunyikan agar tidak menyerupai tombol aksi.
                             Button(
                                 onClick = onNext,
                                 modifier = Modifier

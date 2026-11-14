@@ -3,9 +3,9 @@
 Berkas `app/src/main/assets/lesson_extras.json` menyimpan konten opsional untuk **Mode Pelajaran Bertahap** tanpa mengubah kurikulum inti (`MriCurriculumData.kt`).
 
 ## Aturan Validasi Pakar (`reviewed`)
-1. Setiap bagian soal cerita (`stories[]`) dan rantai langkah interaktif (`interactive`) memiliki atribut `"reviewed": false` secara bawaan.
-2. Konten dengan `"reviewed": false` **tidak akan ditampilkan ke pengguna umum** pada mode produksi kecuali sakelar pratinjau draf diaktifkan dalam mode debug.
-3. Hanya pakar radiologi / fisikawan medis MRI yang berwenang mengubah `"reviewed": true` beserta `"reviewedBy"` dan `"reviewedAt"`.
+1. Setiap bagian `nanoHints` (`nanoHintsReviewed`), `recap` (`recapReviewed`), soal cerita (`stories[]`), dan rantai langkah interaktif (`interactive`) memiliki atribut `"reviewed": false` secara bawaan.
+2. Konten dengan status `reviewed = false` **tidak akan ditampilkan ke pengguna umum** pada mode produksi kecuali sakelar pengembang pratinjau draf diaktifkan dalam build debug (`BuildConfig.DEBUG`).
+3. Hanya pakar radiologi / fisikawan medis MRI yang berwenang mengubah status `reviewed` / `nanoHintsReviewed` / `recapReviewed` menjadi `true` beserta `"reviewedBy"` dan `"reviewedAt"`.
 
 ## Struktur JSON
 
@@ -17,10 +17,12 @@ Berkas `app/src/main/assets/lesson_extras.json` menyimpan konten opsional untuk 
       "nanoHints": [
         "Komentar singkat Nano pada langkah penjelasan 1 (maks 90 karakter)."
       ],
+      "nanoHintsReviewed": false,
       "recap": [
         "Butir rangkuman 1 untuk layar Selesai",
         "Butir rangkuman 2 untuk layar Selesai"
       ],
+      "recapReviewed": false,
       "stories": [
         {
           "id": "story:M01.T0:1",

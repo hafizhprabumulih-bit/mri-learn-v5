@@ -94,5 +94,15 @@ class ModuleCompletionCelebrationTest {
                 alreadyCelebratedModuleIds = emptySet()
             )
         )
+
+        // Progres optimistis langsung meng-upgrade simpul SKIP_TEST menjadi READ
+        val optimistic = ModuleCompletionCelebration.optimisticReadProgress(
+            module = m02,
+            completedCodes = readBefore + skipped + lastUnread,
+            skippedCodes = skipped,
+            justCompletedCode = allCodes[0]
+        )
+        assertEquals(allCodes.size, optimistic.done)
+        assertEquals(allCodes.size, optimistic.total)
     }
 }

@@ -6,11 +6,13 @@
         "Itu sebabnya MRI bagus untuk jaringan lunak.",
         "Semakin besar B₀, semakin cepat presesi proton."
       ],
+      "nanoHintsReviewed": false,
       "recap": [
         "Hidrogen di air dan lemak menjadi sumber sinyal MRI.",
         "Proton berpresesi pada frekuensi Larmor, f₀ = γ · B₀.",
         "Pulsa RF pada frekuensi itu mengeksitasi proton, lalu muncul sinyal FID."
       ],
+      "recapReviewed": false,
       "stories": [
         {
           "id": "story:M01.T0:1",

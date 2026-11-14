@@ -86,6 +86,7 @@ import com.example.data.CharacterCatalog
 import com.example.data.LegacyNodeCodes
 import com.example.ui.path.PathNavigationHints
 import com.example.util.QuizSessionResult
+import com.example.util.QuizStatsCalculator
 import com.example.ui.character.AvatarView
 import com.example.ui.character.Expression
 import com.example.ui.components.rememberRestorableScrollState
@@ -125,6 +126,14 @@ fun QuizScreen(
     var retrySubmitted by remember(scopeKey) { mutableStateOf(false) }
     var retryFinished by remember(scopeKey) { mutableStateOf(false) }
     var retryAnswers by remember(scopeKey) { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var retrySelectedMap by remember(scopeKey) { mutableStateOf<Map<String, Int>>(emptyMap()) }
+    var wrongStreak by remember(scopeKey) { mutableIntStateOf(0) }
+    var countedSessionQuizIds by remember(scopeKey) { mutableStateOf<Set<String>>(emptySet()) }
+
+    val pathHolder = com.example.ui.path.rememberModulePathStateHolder()
+    val todayKey = remember {
+        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    }
 
     val isRetryMode = retryQuizIds != null
     val activeQuizzes = remember(quizzes, retryQuizIds) {
@@ -157,26 +166,17 @@ fun QuizScreen(
         mutableIntStateOf(0) // 0 = Default, 1 = Petunjuk, 2 = Fakta MRI, 3 = Fokus Kunci, 4 = Semangat
     }
 
-    val catalogQuizIds = remember(state.quizzesList) {
-        state.quizzesList.mapTo(HashSet()) { it.id }
+    val quizStats = remember(state.quizzesList, state.quizAttempts, state.quizModuleFilter) {
+        QuizStatsCalculator.compute(
+            allQuizzes = state.quizzesList,
+            attempts = state.quizAttempts,
+            selectedModuleFilter = state.quizModuleFilter
+        )
     }
-    val scopedAttempts = state.quizAttempts.filter { attempt ->
-        if (attempt.quizId !in catalogQuizIds) return@filter false
-        val filter = state.quizModuleFilter
-        filter == "SEMUA" ||
-            attempt.moduleId == filter ||
-            (filter.length <= 3 && attempt.moduleId.startsWith(filter)) ||
-            attempt.nodeCode.startsWith(filter)
-    }
-    val totalAttempts = scopedAttempts.size
-    val correctAttempts = scopedAttempts.count { it.isCorrect }
-    val latestAttemptByQuizId = scopedAttempts
-        .groupBy { it.quizId }
-        .mapValues { (_, list) -> list.maxByOrNull { it.answeredAt } }
-    val stillWrongAttempts = latestAttemptByQuizId.values
-        .filterNotNull()
-        .filter { !it.isCorrect }
-    val accuracyPct = if (totalAttempts > 0) (correctAttempts * 100) / totalAttempts else 0
+    val totalAttempts = quizStats.totalAttempts
+    val correctAttempts = quizStats.correctAttempts
+    val stillWrongAttempts = quizStats.stillWrongAttempts
+    val accuracyPct = quizStats.accuracyPct
 
     val currentQuiz = activeQuizzes.getOrNull(activeIndex)
     val quizScrollState = rememberRestorableScrollState("tab_kuis", viewModel)
@@ -565,16 +565,24 @@ fun QuizScreen(
                         retrySubmitted = false
                         retryFinished = false
                         retryAnswers = emptyMap()
+                        retrySelectedMap = emptyMap()
+                        wrongStreak = 0
                     },
                     onPrimaryNext = {
                         if (activeModuleCode != null && state.quizLevelFilter in 1..2) {
                             retryQuizIds = null
                             retryFinished = false
+                            retrySelectedMap = emptyMap()
+                            wrongStreak = 0
+                            countedSessionQuizIds = emptySet()
                             QuizSessionSnapshotHolder.clear()
                             viewModel.setQuizLevelFilter(state.quizLevelFilter + 1)
                         } else {
                             retryQuizIds = null
                             retryFinished = false
+                            retrySelectedMap = emptyMap()
+                            wrongStreak = 0
+                            countedSessionQuizIds = emptySet()
                             viewModel.navigateBack()
                         }
                     }
@@ -601,26 +609,11 @@ fun QuizScreen(
                     label = "nanoTilt"
                 )
                 var nanoTapBounceCount by remember(currentQuiz.id) { mutableIntStateOf(0) }
-                var wrongStreak by remember { mutableIntStateOf(0) }
                 val nanoTapScale by animateFloatAsState(
                     targetValue = if (nanoTapBounceCount % 2 == 1) 1.12f else 1.0f,
                     animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
                     label = "nanoTapScale"
                 )
-                val pathHolder = com.example.ui.path.rememberModulePathStateHolder()
-                val todayKey = remember {
-                    java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
-                }
-                LaunchedEffect(activeSubmitted, currentQuiz.id) {
-                    if (activeSubmitted) {
-                        pathHolder.recordDailyShift(todayKey, quizzesDelta = 1)
-                        if (activeSelected == currentQuiz.correctIndex) {
-                            wrongStreak = 0
-                        } else {
-                            wrongStreak++
-                        }
-                    }
-                }
 
                 val isAnswerCorrect = activeSelected == currentQuiz.correctIndex
                 val autoHintActive = wrongStreak >= 2
@@ -838,6 +831,7 @@ fun QuizScreen(
                                             mriHaptics.lightToggle()
                                             if (isRetryMode) {
                                                 retrySelected = index
+                                                retrySelectedMap = retrySelectedMap + (currentQuiz.id to index)
                                             } else {
                                                 viewModel.selectQuizOption(index)
                                             }
@@ -926,9 +920,11 @@ fun QuizScreen(
                             mriHaptics.lightToggle()
                             if (isRetryMode) {
                                 if (retryIndex > 0) {
-                                    retryIndex--
-                                    retrySelected = null
-                                    retrySubmitted = false
+                                    val prevIdx = retryIndex - 1
+                                    val prevQuizId = activeQuizzes.getOrNull(prevIdx)?.id
+                                    retryIndex = prevIdx
+                                    retrySelected = prevQuizId?.let { retrySelectedMap[it] }
+                                    retrySubmitted = prevQuizId != null && retryAnswers.containsKey(prevQuizId)
                                 }
                             } else {
                                 viewModel.prevQuizQuestion()
@@ -951,14 +947,25 @@ fun QuizScreen(
                         Button(
                             onClick = {
                                 if (isRetryMode) {
-                                    val isCorrect = retrySelected == currentQuiz.correctIndex
+                                    val pickedIdx = retrySelected
+                                    val isCorrect = pickedIdx == currentQuiz.correctIndex
                                     if (isCorrect) mriHaptics.mediumAction() else mriHaptics.warningBuzz()
+                                    if (pickedIdx != null) {
+                                        retrySelectedMap = retrySelectedMap + (currentQuiz.id to pickedIdx)
+                                    }
                                     retryAnswers = retryAnswers + (currentQuiz.id to isCorrect)
                                     retrySubmitted = true
+                                    pathHolder.recordDailyShiftAsync(todayKey, quizzesDelta = 1)
+                                    wrongStreak = if (isCorrect) 0 else wrongStreak + 1
                                 } else {
                                     val isCorrect = state.selectedOptionIndex == currentQuiz.correctIndex
                                     if (isCorrect) mriHaptics.mediumAction() else mriHaptics.warningBuzz()
                                     QuizSessionSnapshotHolder.record(currentQuiz.id, isCorrect)
+                                    if (currentQuiz.id !in countedSessionQuizIds) {
+                                        countedSessionQuizIds = countedSessionQuizIds + currentQuiz.id
+                                        pathHolder.recordDailyShiftAsync(todayKey, quizzesDelta = 1)
+                                        wrongStreak = if (isCorrect) 0 else wrongStreak + 1
+                                    }
                                     viewModel.submitQuizAnswer()
                                 }
                             },
@@ -978,9 +985,11 @@ fun QuizScreen(
                                 mriHaptics.lightToggle()
                                 if (isRetryMode) {
                                     if (retryIndex < activeQuizzes.lastIndex) {
-                                        retryIndex++
-                                        retrySelected = null
-                                        retrySubmitted = false
+                                        val nextIdx = retryIndex + 1
+                                        val nextQuizId = activeQuizzes.getOrNull(nextIdx)?.id
+                                        retryIndex = nextIdx
+                                        retrySelected = nextQuizId?.let { retrySelectedMap[it] }
+                                        retrySubmitted = nextQuizId != null && retryAnswers.containsKey(nextQuizId)
                                     } else {
                                         retryFinished = true
                                     }
@@ -1010,6 +1019,9 @@ fun QuizScreen(
                         onClick = {
                             retryQuizIds = null
                             retryFinished = false
+                            retrySelectedMap = emptyMap()
+                            wrongStreak = 0
+                            countedSessionQuizIds = emptySet()
                             QuizSessionSnapshotHolder.clear()
                             viewModel.restartQuiz()
                         },

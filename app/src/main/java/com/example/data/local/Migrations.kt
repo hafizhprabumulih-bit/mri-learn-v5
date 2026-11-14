@@ -86,6 +86,24 @@ private fun ensureBaselineV11Schema(db: SupportSQLiteDatabase) {
     db.execSQL(
         "CREATE TABLE IF NOT EXISTS `quiz_attempts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `quizId` TEXT NOT NULL, `nodeCode` TEXT NOT NULL, `moduleId` TEXT NOT NULL, `selectedIndex` INTEGER NOT NULL, `isCorrect` INTEGER NOT NULL, `answeredAt` INTEGER NOT NULL)"
     )
+    if (!hasColumn(db, "quiz_attempts", "quizId")) {
+        db.execSQL("ALTER TABLE `quiz_attempts` ADD COLUMN `quizId` TEXT NOT NULL DEFAULT ''")
+    }
+    if (!hasColumn(db, "quiz_attempts", "nodeCode")) {
+        db.execSQL("ALTER TABLE `quiz_attempts` ADD COLUMN `nodeCode` TEXT NOT NULL DEFAULT ''")
+    }
+    if (!hasColumn(db, "quiz_attempts", "moduleId")) {
+        db.execSQL("ALTER TABLE `quiz_attempts` ADD COLUMN `moduleId` TEXT NOT NULL DEFAULT ''")
+    }
+    if (!hasColumn(db, "quiz_attempts", "selectedIndex")) {
+        db.execSQL("ALTER TABLE `quiz_attempts` ADD COLUMN `selectedIndex` INTEGER NOT NULL DEFAULT 0")
+    }
+    if (!hasColumn(db, "quiz_attempts", "isCorrect")) {
+        db.execSQL("ALTER TABLE `quiz_attempts` ADD COLUMN `isCorrect` INTEGER NOT NULL DEFAULT 0")
+    }
+    if (!hasColumn(db, "quiz_attempts", "answeredAt")) {
+        db.execSQL("ALTER TABLE `quiz_attempts` ADD COLUMN `answeredAt` INTEGER NOT NULL DEFAULT 0")
+    }
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_quiz_attempts_quizId` ON `quiz_attempts` (`quizId`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_quiz_attempts_nodeCode` ON `quiz_attempts` (`nodeCode`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_quiz_attempts_moduleId` ON `quiz_attempts` (`moduleId`)")
@@ -105,12 +123,30 @@ private fun ensureBaselineV11Schema(db: SupportSQLiteDatabase) {
     db.execSQL(
         "CREATE TABLE IF NOT EXISTS `mri_modules` (`id` TEXT NOT NULL, `code` TEXT NOT NULL, `title` TEXT NOT NULL, `subtitle` TEXT NOT NULL, `description` TEXT NOT NULL, `levelBadge` TEXT NOT NULL, `iconName` TEXT NOT NULL, `sortOrder` INTEGER NOT NULL, PRIMARY KEY(`id`))"
     )
+    if (!hasColumn(db, "mri_modules", "sortOrder")) {
+        db.execSQL("ALTER TABLE `mri_modules` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0")
+    }
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_mri_modules_id` ON `mri_modules` (`id`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_mri_modules_sortOrder` ON `mri_modules` (`sortOrder`)")
 
     db.execSQL(
         "CREATE TABLE IF NOT EXISTS `curriculum_nodes` (`code` TEXT NOT NULL, `moduleId` TEXT NOT NULL, `level` INTEGER NOT NULL, `title` TEXT NOT NULL, `summaryShort` TEXT NOT NULL, `detailFull` TEXT NOT NULL, `analogi` TEXT NOT NULL, `prerequisite` TEXT, `learningGoal` TEXT, `crossLinks` TEXT, `labType` TEXT, `sortOrder` INTEGER NOT NULL, PRIMARY KEY(`code`))"
     )
+    if (!hasColumn(db, "curriculum_nodes", "prerequisite")) {
+        db.execSQL("ALTER TABLE `curriculum_nodes` ADD COLUMN `prerequisite` TEXT")
+    }
+    if (!hasColumn(db, "curriculum_nodes", "learningGoal")) {
+        db.execSQL("ALTER TABLE `curriculum_nodes` ADD COLUMN `learningGoal` TEXT")
+    }
+    if (!hasColumn(db, "curriculum_nodes", "crossLinks")) {
+        db.execSQL("ALTER TABLE `curriculum_nodes` ADD COLUMN `crossLinks` TEXT")
+    }
+    if (!hasColumn(db, "curriculum_nodes", "labType")) {
+        db.execSQL("ALTER TABLE `curriculum_nodes` ADD COLUMN `labType` TEXT")
+    }
+    if (!hasColumn(db, "curriculum_nodes", "sortOrder")) {
+        db.execSQL("ALTER TABLE `curriculum_nodes` ADD COLUMN `sortOrder` INTEGER NOT NULL DEFAULT 0")
+    }
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_curriculum_nodes_code` ON `curriculum_nodes` (`code`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_curriculum_nodes_moduleId` ON `curriculum_nodes` (`moduleId`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_curriculum_nodes_level` ON `curriculum_nodes` (`level`)")
@@ -119,6 +155,12 @@ private fun ensureBaselineV11Schema(db: SupportSQLiteDatabase) {
     db.execSQL(
         "CREATE TABLE IF NOT EXISTS `curriculum_quizzes` (`id` TEXT NOT NULL, `moduleId` TEXT NOT NULL, `nodeCode` TEXT NOT NULL, `level` INTEGER NOT NULL, `question` TEXT NOT NULL, `optionsJson` TEXT NOT NULL, `correctIndex` INTEGER NOT NULL, `explanation` TEXT NOT NULL, PRIMARY KEY(`id`))"
     )
+    if (!hasColumn(db, "curriculum_quizzes", "level")) {
+        db.execSQL("ALTER TABLE `curriculum_quizzes` ADD COLUMN `level` INTEGER NOT NULL DEFAULT 1")
+    }
+    if (!hasColumn(db, "curriculum_quizzes", "optionsJson")) {
+        db.execSQL("ALTER TABLE `curriculum_quizzes` ADD COLUMN `optionsJson` TEXT NOT NULL DEFAULT '[]'")
+    }
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_curriculum_quizzes_id` ON `curriculum_quizzes` (`id`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_curriculum_quizzes_moduleId` ON `curriculum_quizzes` (`moduleId`)")
     db.execSQL("CREATE INDEX IF NOT EXISTS `index_curriculum_quizzes_nodeCode` ON `curriculum_quizzes` (`nodeCode`)")

@@ -169,7 +169,7 @@ fun ArcadeHubScreen(
             },
             onRoundFinished = { finalScore ->
                 pathHolder.recordMinigameResultAsync(MinigameKind.CONTRAST_ARTIFACT_FIX.key, finalScore)
-                pathHolder.recordDailyShiftAsync(todayKey, quizzesDelta = 1)
+                pathHolder.recordDailyShiftAsync(todayKey, labsDelta = 1)
             },
             onBack = { route = ArcadeRoute.HUB }
         )

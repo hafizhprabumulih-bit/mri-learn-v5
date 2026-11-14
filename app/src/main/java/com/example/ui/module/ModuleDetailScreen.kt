@@ -778,7 +778,6 @@ private fun FocusNodeReader(
         androidx.compose.material3.AlertDialog(
             onDismissRequest = {
                 showQuickReadGateDialog = false
-                quickReadSelectedOption = null
             },
             containerColor = DarkNavySlate,
             title = {
@@ -874,7 +873,6 @@ private fun FocusNodeReader(
                 TextButton(
                     onClick = {
                         showQuickReadGateDialog = false
-                        quickReadSelectedOption = null
                     }
                 ) {
                     Text("Batal", color = TextSecondary)

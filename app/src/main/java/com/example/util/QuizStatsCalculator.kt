@@ -23,10 +23,14 @@ object QuizStatsCalculator {
     ): CatalogQuizStats {
         val catalogQuizIds = allQuizzes.mapTo(HashSet()) { it.id }
         val catalogAttempts = attempts.filter { it.quizId in catalogQuizIds }
-        val scoped = if (selectedModuleFilter == "ALL") {
+        val scoped = if (selectedModuleFilter == "ALL" || selectedModuleFilter == "SEMUA") {
             catalogAttempts
         } else {
-            catalogAttempts.filter { it.moduleId == selectedModuleFilter }
+            catalogAttempts.filter { attempt ->
+                attempt.moduleId == selectedModuleFilter ||
+                    (selectedModuleFilter.length <= 3 && attempt.moduleId.startsWith(selectedModuleFilter)) ||
+                    attempt.nodeCode.startsWith(selectedModuleFilter)
+            }
         }
         val total = scoped.size
         val correct = scoped.count { it.isCorrect }

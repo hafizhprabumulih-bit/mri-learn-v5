@@ -18,7 +18,8 @@ sealed interface LessonStep {
     ) : LessonStep
 
     data class Interactive(
-        val contentId: String
+        val contentId: String,
+        val isDraft: Boolean = false
     ) : LessonStep
 
     data class Story(

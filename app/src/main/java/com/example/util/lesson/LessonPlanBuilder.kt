@@ -33,11 +33,15 @@ object LessonPlanBuilder {
             ?.takeIf { it.isNotEmpty() }
             ?: node.summaryShort.trim().ifEmpty { openingTitle }
 
-        var chunks = LessonChunker.chunk(
+        val initialChunks = LessonChunker.chunk(
             detailFull = node.detailFull,
             summaryShort = node.summaryShort
         )
-        val nanoHints = nodeExtras?.nanoHints.orEmpty()
+        val rawHints = if (nodeExtras?.nanoHintsReviewed == true || allowDrafts) {
+            nodeExtras?.nanoHints.orEmpty()
+        } else {
+            emptyList()
+        }
 
         val hasAnalogy = node.analogi.trim().isNotEmpty()
         val interactiveContent = nodeExtras?.interactive?.takeIf { it.reviewed || allowDrafts }
@@ -60,14 +64,17 @@ object LessonPlanBuilder {
             (if (checkQuiz != null) 1 else 0)
 
         val maxExplainAllowed = (10 - fixedNonExplainCount).coerceAtLeast(1)
-        chunks = mergeChunksToLimit(chunks, maxExplainAllowed)
+        val chunkHintPairs = mergeChunksToLimit(
+            chunks = initialChunks,
+            hints = rawHints,
+            maxCount = maxExplainAllowed
+        )
 
         val steps = mutableListOf<LessonStep>()
         steps.add(LessonStep.Opening(title = openingTitle, goal = openingGoal))
 
-        val totalExplain = chunks.size
-        chunks.forEachIndexed { idx, chunk ->
-            val hint = nanoHints.getOrNull(idx)?.takeIf { it.isNotBlank() }
+        val totalExplain = chunkHintPairs.size
+        chunkHintPairs.forEachIndexed { idx, (chunk, hint) ->
             steps.add(
                 LessonStep.Explain(
                     chunk = chunk,
@@ -83,7 +90,12 @@ object LessonPlanBuilder {
         }
 
         if (interactiveContent != null) {
-            steps.add(LessonStep.Interactive(contentId = "$normCode:interactive"))
+            steps.add(
+                LessonStep.Interactive(
+                    contentId = "$normCode:interactive",
+                    isDraft = !interactiveContent.reviewed
+                )
+            )
         }
 
         activeStories.forEach { story ->
@@ -107,26 +119,45 @@ object LessonPlanBuilder {
         )
     }
 
-    private fun mergeChunksToLimit(chunks: List<LessonChunk>, maxCount: Int): List<LessonChunk> {
-        val list = chunks.toMutableList()
+    private fun mergeChunksToLimit(
+        chunks: List<LessonChunk>,
+        hints: List<String>,
+        maxCount: Int
+    ): List<Pair<LessonChunk, String?>> {
+        val list = chunks.mapIndexed { idx, chunk ->
+            chunk to hints.getOrNull(idx)?.trim()?.takeIf { it.isNotEmpty() }
+        }.toMutableList()
+
+        // Jika masih ada nanoHints di luar panjang awal chunks, tempelkan ke segmen terakhir agar tidak terbuang
+        if (hints.size > list.size && list.isNotEmpty()) {
+            val extraHint = hints.drop(list.size).firstOrNull { it.isNotBlank() }?.trim()
+            val lastIdx = list.lastIndex
+            if (extraHint != null && list[lastIdx].second == null) {
+                list[lastIdx] = list[lastIdx].first to extraHint
+            }
+        }
+
         while (list.size > maxCount && list.size > 1) {
             var bestIdx = 0
             var bestLen = Int.MAX_VALUE
             for (i in 0 until list.size - 1) {
-                val len = (list[i].leadIn?.length ?: 0) + list[i].text.length +
-                    (list[i + 1].leadIn?.length ?: 0) + list[i + 1].text.length
+                val ca = list[i].first
+                val cb = list[i + 1].first
+                val len = (ca.leadIn?.length ?: 0) + ca.text.length +
+                    (cb.leadIn?.length ?: 0) + cb.text.length
                 if (len < bestLen) {
                     bestLen = len
                     bestIdx = i
                 }
             }
-            val a = list[bestIdx]
-            val b = list[bestIdx + 1]
+            val (a, hintA) = list[bestIdx]
+            val (b, hintB) = list[bestIdx + 1]
             val bCombined = if (!b.leadIn.isNullOrBlank()) "${b.leadIn} ${b.text}".trim() else b.text
-            list[bestIdx] = LessonChunk(
+            val mergedChunk = LessonChunk(
                 leadIn = a.leadIn,
                 text = "${a.text} $bCombined".trim()
             )
+            list[bestIdx] = mergedChunk to (hintA ?: hintB)
             list.removeAt(bestIdx + 1)
         }
         return list

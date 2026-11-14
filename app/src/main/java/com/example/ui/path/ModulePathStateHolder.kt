@@ -124,6 +124,8 @@ class ModulePathStateHolder(context: Context) {
 
     val manualReviewNodesFlow: Flow<Set<String>> = repository.manualReviewNodesFlow
 
+    val excludedReviewNodesFlow: Flow<Set<String>> = repository.excludedReviewNodesFlow
+
     val allowLessonDraftsFlow: Flow<Boolean> = repository.allowLessonDraftsFlow
 
     val lessonExtras: com.example.data.lesson.LessonExtras by lazy {
@@ -133,9 +135,17 @@ class ModulePathStateHolder(context: Context) {
     fun observeSavedLessonStep(nodeCode: String): Flow<Int> =
         repository.observeSavedLessonStep(nodeCode)
 
+    fun observeSavedLessonAnswers(nodeCode: String): Flow<String> =
+        repository.observeSavedLessonAnswers(nodeCode)
+
     fun saveLessonStepAsync(nodeCode: String, stepIndex: Int): Job =
         persistenceScope.launch {
             repository.saveLessonStep(nodeCode, stepIndex)
+        }
+
+    fun saveLessonProgressAsync(nodeCode: String, stepIndex: Int, encodedAnswers: String): Job =
+        persistenceScope.launch {
+            repository.saveLessonProgress(nodeCode, stepIndex, encodedAnswers)
         }
 
     fun clearLessonStepAsync(nodeCode: String): Job =

@@ -147,4 +147,71 @@ object LessonReducer {
             finished = false
         )
     }
+
+    /** Menyandikan riwayat jawaban langkah soal dalam sesi pelajaran yang belum tuntas. */
+    fun encodeAttempts(attemptsByItem: Map<String, List<Int>>): String {
+        if (attemptsByItem.isEmpty()) return ""
+        return attemptsByItem.entries
+            .filter { (k, v) -> k.isNotBlank() && v.isNotEmpty() }
+            .sortedBy { it.key }
+            .joinToString(separator = ";") { (itemId, choices) ->
+                val safeKey = itemId.replace("%", "%25")
+                    .replace(";", "%3B")
+                    .replace("=", "%3D")
+                "$safeKey=${choices.take(2).joinToString(",")}"
+            }
+    }
+
+    /** Menguraikan string sandi jawaban sesi pelajaran menjadi peta itemId -> daftar indeks opsi. */
+    fun decodeAttempts(encoded: String): Map<String, List<Int>> {
+        if (encoded.isBlank()) return emptyMap()
+        val result = LinkedHashMap<String, List<Int>>()
+        for (entry in encoded.split(";")) {
+            val eqIdx = entry.indexOf('=')
+            if (eqIdx <= 0) continue
+            val itemId = entry.substring(0, eqIdx)
+                .replace("%3D", "=")
+                .replace("%3B", ";")
+                .replace("%25", "%")
+                .trim()
+            if (itemId.isEmpty()) continue
+            val values = entry.substring(eqIdx + 1)
+                .split(",")
+                .mapNotNull { it.trim().toIntOrNull() }
+                .take(2)
+            if (values.isNotEmpty()) {
+                result[itemId] = values
+            }
+        }
+        return result
+    }
+
+    /** Memulihkan indeks langkah serta status soal terjawab agar pengguna tidak dapat menjawab ulang soal yang sudah tuntas. */
+    fun restoreProgress(
+        state: LessonState,
+        savedIndex: Int,
+        encodedAttempts: String,
+        correctIndexByItem: Map<String, Int>
+    ): LessonState {
+        val base = handleRestoreIndex(state, savedIndex)
+        val decoded = decodeAttempts(encodedAttempts)
+        if (decoded.isEmpty()) return base
+
+        val phases = LinkedHashMap<String, QuestionPhase>()
+        for ((itemId, choices) in decoded) {
+            val correctIdx = correctIndexByItem[itemId]
+            phases[itemId] = when {
+                choices.isEmpty() -> QuestionPhase.UNANSWERED
+                correctIdx != null && choices.any { it == correctIdx } -> QuestionPhase.RESOLVED_CORRECT
+                choices.size >= 2 -> QuestionPhase.RESOLVED_WRONG_TWICE
+                correctIdx != null -> QuestionPhase.RETRY_ALLOWED
+                else -> QuestionPhase.RESOLVED_CORRECT
+            }
+        }
+        return base.copy(
+            attemptsByItem = decoded,
+            questionPhaseByItem = phases,
+            awaitingSecondSelection = emptySet()
+        )
+    }
 }

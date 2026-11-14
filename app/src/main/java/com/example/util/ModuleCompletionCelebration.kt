@@ -26,6 +26,35 @@ object ModuleCompletionCelebration {
         )
     }
 
+    fun optimisticCompletedAndSkipped(
+        completedCodes: Set<String>,
+        skippedCodes: Set<String>,
+        justCompletedCode: String
+    ): Pair<Set<String>, Set<String>> {
+        val normCode = LegacyNodeCodes.normalize(justCompletedCode)
+        val normalizedCompleted = LegacyNodeCodes.normalizeAll(completedCodes) + normCode
+        val normalizedSkipped = LegacyNodeCodes.normalizeAll(skippedCodes) - normCode
+        return normalizedCompleted to normalizedSkipped
+    }
+
+    fun optimisticReadProgress(
+        module: MriModule,
+        completedCodes: Set<String>,
+        skippedCodes: Set<String>,
+        justCompletedCode: String
+    ): ModuleProgress {
+        val (effectiveCompleted, effectiveSkipped) = optimisticCompletedAndSkipped(
+            completedCodes = completedCodes,
+            skippedCodes = skippedCodes,
+            justCompletedCode = justCompletedCode
+        )
+        return readProgressOf(
+            module = module,
+            completedCodes = effectiveCompleted,
+            skippedCodes = effectiveSkipped
+        )
+    }
+
     fun shouldShowForReadCompletion(
         moduleId: String,
         module: MriModule,
@@ -34,12 +63,12 @@ object ModuleCompletionCelebration {
         justCompletedCode: String,
         alreadyCelebratedModuleIds: Set<String>
     ): Boolean {
-        val normCode = LegacyNodeCodes.normalize(justCompletedCode)
         val before = readProgressOf(module, completedBefore, skippedBefore)
-        val after = readProgressOf(
+        val after = optimisticReadProgress(
             module = module,
-            completedCodes = completedBefore + normCode,
-            skippedCodes = LegacyNodeCodes.normalizeAll(skippedBefore) - normCode
+            completedCodes = completedBefore,
+            skippedCodes = skippedBefore,
+            justCompletedCode = justCompletedCode
         )
         return shouldShow(
             moduleId = moduleId,

@@ -72,19 +72,22 @@ object LessonChunker {
     internal fun splitSentences(paragraph: String): List<String> {
         val result = mutableListOf<String>()
         val sb = StringBuilder()
-        var parenDepth = 0
+        val pairedOpenIndices = findPairedOpenBrackets(paragraph)
+        val openStack = ArrayDeque<Char>()
         val len = paragraph.length
         var i = 0
 
         while (i < len) {
             val ch = paragraph[i]
             when (ch) {
-                '(', '[', '{' -> parenDepth++
-                ')', ']', '}' -> if (parenDepth > 0) parenDepth--
+                '(', '[', '{' -> if (i in pairedOpenIndices) openStack.addLast(ch)
+                ')', ']', '}' -> if (openStack.isNotEmpty() && matchesBracket(openStack.last(), ch)) {
+                    openStack.removeLast()
+                }
             }
             sb.append(ch)
 
-            if (parenDepth == 0 && (ch == '.' || ch == '!' || ch == '?')) {
+            if (openStack.isEmpty() && (ch == '.' || ch == '!' || ch == '?')) {
                 val nextIdx = i + 1
                 if (nextIdx < len && paragraph[nextIdx].isWhitespace()) {
                     var afterWs = nextIdx
@@ -130,8 +133,8 @@ object LessonChunker {
         val lowerToken = rawToken.lowercase().trimStart('"', '\'', '“')
         if (lowerToken in ABBREVIATIONS) return true
 
-        // Single uppercase letter or short code token like M07A., T1.7., 1., 2.
-        if (rawToken.length == 1 && rawToken[0].isLetter()) return true
+        // Lindungi penanda butir tunggal di awal paragraf (mis. "A. ..."), tetapi biarkan satuan 1 huruf (mis. "9 K.", "1,5 T.", "64 s.") memisah kalimat.
+        if (tokenStart < 0 && rawToken.length == 1 && rawToken[0].isLetter()) return true
         if (CODE_TOKEN_REGEX.matches(rawToken)) return true
 
         // Check if token contains internal dots like T1.7 or e.g.
@@ -141,6 +144,33 @@ object LessonChunker {
         if (nextNonSpaceChar.isLowerCase()) return true
 
         return false
+    }
+
+    private fun matchesBracket(open: Char, close: Char): Boolean = when (open) {
+        '(' -> close == ')'
+        '[' -> close == ']'
+        '{' -> close == '}'
+        else -> false
+    }
+
+    private fun findPairedOpenBrackets(text: String): Set<Int> {
+        val paired = HashSet<Int>()
+        val stack = ArrayDeque<Pair<Char, Int>>()
+        for (idx in text.indices) {
+            when (val ch = text[idx]) {
+                '(', '[', '{' -> stack.addLast(ch to idx)
+                ')', ']', '}' -> {
+                    for (stackIdx in stack.indices.reversed()) {
+                        if (matchesBracket(stack[stackIdx].first, ch)) {
+                            val (_, openIdx) = stack.removeAt(stackIdx)
+                            paired.add(openIdx)
+                            break
+                        }
+                    }
+                }
+            }
+        }
+        return paired
     }
 
     private fun groupSentences(sentences: List<String>): List<String> {
